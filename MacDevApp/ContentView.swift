@@ -33,15 +33,28 @@ struct ContentView: View {
 
     private func registerAllTools() {
         registry.registerAll([
+            // Crypto
             HashGeneratorView.descriptor,
             HMACGeneratorView.descriptor,
             AESCryptorView.descriptor,
             RSACryptorView.descriptor,
+            // API Client
             APIClientView.descriptor,
+            // Conversion
             TimestampConverterView.descriptor,
             URLCodecView.descriptor,
             Base64CodecView.descriptor,
             JSONFormatterView.descriptor,
+            UUIDGeneratorView.descriptor,
+            RandomStringGeneratorView.descriptor,
+            BaseConverterView.descriptor,
+            HTMLEntityCodecView.descriptor,
+            StringEscaperView.descriptor,
+            StringCaseConverterView.descriptor,
+            HexAsciiConverterView.descriptor,
+            LineSorterView.descriptor,
+            TextAnalyzerView.descriptor,
+            LoremIpsumGeneratorView.descriptor,
         ])
     }
 
@@ -57,6 +70,16 @@ struct ContentView: View {
         case "url-codec": URLCodecView()
         case "base64-codec": Base64CodecView()
         case "json-formatter": JSONFormatterView()
+        case "uuid-generator": UUIDGeneratorView()
+        case "random-string": RandomStringGeneratorView()
+        case "base-converter": BaseConverterView()
+        case "html-entity": HTMLEntityCodecView()
+        case "string-escape": StringEscaperView()
+        case "string-case": StringCaseConverterView()
+        case "hex-ascii": HexAsciiConverterView()
+        case "line-sort": LineSorterView()
+        case "text-analyzer": TextAnalyzerView()
+        case "lorem-ipsum": LoremIpsumGeneratorView()
         default:
             ContentUnavailableView(
                 "Tool Not Found",
