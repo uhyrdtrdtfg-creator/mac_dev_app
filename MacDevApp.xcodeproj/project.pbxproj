@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		4B59BED42E70A263295E3439 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 8735535E3603F195334E2057 /* Assets.xcassets */; };
 		4DE74DA367029D09DFCD254A /* DevAppCore in Frameworks */ = {isa = PBXBuildFile; productRef = 57ED970735B49D8092D048C3 /* DevAppCore */; };
 		521F98159BE0282B51CF419E /* APIClient in Frameworks */ = {isa = PBXBuildFile; productRef = 9DE7889CBAD97C4D6D6BCAA2 /* APIClient */; };
 		5A490AE1135C4CFE56DA9C0F /* ToolRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F706069CE7F18A563EE0C51 /* ToolRegistry.swift */; };
@@ -25,6 +26,7 @@
 		416716C1D6CE01CEC7F1B54A /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		69CCE1504D3EB106B6843F2E /* DevAppCore */ = {isa = PBXFileReference; lastKnownFileType = folder; name = DevAppCore; path = Packages/DevAppCore; sourceTree = SOURCE_ROOT; };
 		85631AA68C1015BA40C866C6 /* CryptoTools */ = {isa = PBXFileReference; lastKnownFileType = folder; name = CryptoTools; path = Packages/CryptoTools; sourceTree = SOURCE_ROOT; };
+		8735535E3603F195334E2057 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		AF5E3409A2C10A159200986C /* MacDevApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MacDevApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		B6A6BFC4E38853FF311C2064 /* ConversionTools */ = {isa = PBXFileReference; lastKnownFileType = folder; name = ConversionTools; path = Packages/ConversionTools; sourceTree = SOURCE_ROOT; };
 		D379F33ACF26F897EA64A046 /* APIClient */ = {isa = PBXFileReference; lastKnownFileType = folder; name = APIClient; path = Packages/APIClient; sourceTree = SOURCE_ROOT; };
@@ -56,6 +58,7 @@
 		378FC95743AD29A68247DC07 /* MacDevApp */ = {
 			isa = PBXGroup;
 			children = (
+				8735535E3603F195334E2057 /* Assets.xcassets */,
 				416716C1D6CE01CEC7F1B54A /* ContentView.swift */,
 				3A7560D3064F0BB5D09A8369 /* Info.plist */,
 				12930FBF61F663189B00F108 /* MacDevAppApp.swift */,
@@ -101,6 +104,7 @@
 			buildConfigurationList = 7D43D7A0C262AC312D9C3F83 /* Build configuration list for PBXNativeTarget "MacDevApp" */;
 			buildPhases = (
 				1F3FDCD75CB1827A5B163E98 /* Sources */,
+				CF5484868EC33E03F8182CA3 /* Resources */,
 				8759E3461EE35B4B4F4908A3 /* Frameworks */,
 			);
 			buildRules = (
@@ -154,6 +158,17 @@
 		};
 /* End PBXProject section */
 
+/* Begin PBXResourcesBuildPhase section */
+		CF5484868EC33E03F8182CA3 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				4B59BED42E70A263295E3439 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
 /* Begin PBXSourcesBuildPhase section */
 		1F3FDCD75CB1827A5B163E98 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
@@ -184,7 +199,7 @@
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				MARKETING_VERSION = 1.0.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.macdevapp.MacDevApp;
-				PRODUCT_NAME = "Mac Dev App";
+				PRODUCT_NAME = DevToolkit;
 				SDKROOT = macosx;
 				SWIFT_VERSION = 6.0;
 			};
@@ -205,7 +220,7 @@
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				MARKETING_VERSION = 1.0.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.macdevapp.MacDevApp;
-				PRODUCT_NAME = "Mac Dev App";
+				PRODUCT_NAME = DevToolkit;
 				SDKROOT = macosx;
 				SWIFT_VERSION = 6.0;
 			};

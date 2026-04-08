@@ -12,10 +12,15 @@ struct ContentView: View {
             SidebarView(registry: registry)
         } detail: {
             if let toolID = registry.selectedToolID {
-                ScrollView {
+                if toolID == "http-client" {
                     toolView(for: toolID)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    ScrollView {
+                        toolView(for: toolID)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 WelcomeView()
             }

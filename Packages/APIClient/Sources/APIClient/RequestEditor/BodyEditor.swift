@@ -1,7 +1,11 @@
 import SwiftUI
 
 enum BodyType: String, CaseIterable, Identifiable {
-    case none = "None"; case json = "JSON"; case formData = "Form Data"; case raw = "Raw"
+    case none = "None"
+    case json = "JSON"
+    case formData = "Form Data"
+    case raw = "Raw"
+
     var id: String { rawValue }
 }
 
@@ -13,12 +17,35 @@ struct BodyEditor: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Picker("Type", selection: $bodyType) { ForEach(BodyType.allCases) { t in Text(t.rawValue).tag(t) } }.pickerStyle(.segmented).frame(width: 350)
+            Picker("Body Type", selection: $bodyType) {
+                ForEach(BodyType.allCases) { t in
+                    Text(t.rawValue).tag(t)
+                }
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+
             switch bodyType {
-            case .none: ContentUnavailableView("No Body", systemImage: "doc")
-            case .json: TextEditor(text: $jsonBody).font(.system(.body, design: .monospaced)).scrollContentBackground(.hidden).padding(8).background(.fill.tertiary).clipShape(RoundedRectangle(cornerRadius: 8))
-            case .formData: KeyValueEditor(pairs: $formDataPairs)
-            case .raw: TextEditor(text: $rawBody).font(.system(.body, design: .monospaced)).scrollContentBackground(.hidden).padding(8).background(.fill.tertiary).clipShape(RoundedRectangle(cornerRadius: 8))
+            case .none:
+                ContentUnavailableView("No Body", systemImage: "doc")
+            case .json:
+                TextEditor(text: $jsonBody)
+                    .font(.system(.body, design: .monospaced))
+                    .scrollContentBackground(.hidden)
+                    .padding(8)
+                    .background(.fill.tertiary)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .frame(minHeight: 100)
+            case .formData:
+                KeyValueEditor(pairs: $formDataPairs)
+            case .raw:
+                TextEditor(text: $rawBody)
+                    .font(.system(.body, design: .monospaced))
+                    .scrollContentBackground(.hidden)
+                    .padding(8)
+                    .background(.fill.tertiary)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .frame(minHeight: 100)
             }
         }
     }

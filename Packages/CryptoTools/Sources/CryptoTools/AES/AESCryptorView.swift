@@ -28,10 +28,31 @@ public struct AESCryptorView: View {
             }
 
             HStack(spacing: 16) {
-                Picker("Mode", selection: $mode) { ForEach(AESMode.allCases) { m in Text(m.rawValue).tag(m) } }.pickerStyle(.menu).frame(width: 120)
-                Picker("Key Size", selection: $keyBits) { ForEach(AESKeyBits.allCases) { b in Text("\(b.rawValue) bit").tag(b) } }.pickerStyle(.menu).frame(width: 140)
-                if mode != .gcm { Picker("Padding", selection: $padding) { ForEach(AESPadding.allCases) { p in Text(p.rawValue).tag(p) } }.pickerStyle(.menu).frame(width: 130) }
-                Picker("Output", selection: $outputFormat) { ForEach(OutputFormat.allCases) { f in Text(f.rawValue).tag(f) } }.pickerStyle(.segmented).frame(width: 150)
+                Picker("Mode", selection: $mode) {
+                    ForEach(AESMode.allCases) { m in Text(m.rawValue).tag(m) }
+                }
+                .pickerStyle(.menu)
+                .fixedSize()
+
+                Picker("Key Size", selection: $keyBits) {
+                    ForEach(AESKeyBits.allCases) { b in Text("\(b.rawValue) bit").tag(b) }
+                }
+                .pickerStyle(.menu)
+                .fixedSize()
+
+                if mode != .gcm {
+                    Picker("Padding", selection: $padding) {
+                        ForEach(AESPadding.allCases) { p in Text(p.rawValue).tag(p) }
+                    }
+                    .pickerStyle(.menu)
+                    .fixedSize()
+                }
+
+                Picker("Output Format", selection: $outputFormat) {
+                    ForEach(OutputFormat.allCases) { f in Text(f.rawValue).tag(f) }
+                }
+                .pickerStyle(.segmented)
+                .fixedSize()
             }
 
             HStack(spacing: 12) {

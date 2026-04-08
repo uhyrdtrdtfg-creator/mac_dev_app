@@ -27,11 +27,31 @@ public struct RSACryptorView: View {
             }
 
             HStack(spacing: 16) {
-                Picker("Key Size", selection: $keyBits) { ForEach(RSAKeyBits.allCases) { b in Text("\(b.rawValue) bit").tag(b) } }.pickerStyle(.menu).frame(width: 140)
-                Picker("Padding", selection: $padding) { ForEach(RSAPadding.allCases) { p in Text(p.rawValue).tag(p) } }.pickerStyle(.menu).frame(width: 180)
-                Picker("Output", selection: $outputFormat) { ForEach(OutputFormat.allCases) { f in Text(f.rawValue).tag(f) } }.pickerStyle(.segmented).frame(width: 150)
+                Picker("Key Size", selection: $keyBits) {
+                    ForEach(RSAKeyBits.allCases) { b in Text("\(b.rawValue) bit").tag(b) }
+                }
+                .pickerStyle(.menu)
+                .fixedSize()
+
+                Picker("Padding", selection: $padding) {
+                    ForEach(RSAPadding.allCases) { p in Text(p.rawValue).tag(p) }
+                }
+                .pickerStyle(.menu)
+                .fixedSize()
+
+                Picker("Output Format", selection: $outputFormat) {
+                    ForEach(OutputFormat.allCases) { f in Text(f.rawValue).tag(f) }
+                }
+                .pickerStyle(.segmented)
+                .fixedSize()
+
                 Spacer()
-                Button { generateKeys() } label: { Label("Generate Keys", systemImage: "key") }.buttonStyle(.bordered).disabled(isGenerating)
+
+                Button { generateKeys() } label: {
+                    Label("Generate Keys", systemImage: "key")
+                }
+                .buttonStyle(.bordered)
+                .disabled(isGenerating)
             }
 
             HStack(spacing: 12) {

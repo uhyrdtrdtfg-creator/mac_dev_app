@@ -28,15 +28,15 @@ public struct HMACGeneratorView: View {
                     }
                 }
                 .pickerStyle(.menu)
-                .frame(width: 200)
+                .fixedSize()
 
-                Picker("Output", selection: $outputFormat) {
+                Picker("Output Format", selection: $outputFormat) {
                     ForEach(HMACOutputFormat.allCases) { fmt in
                         Text(fmt.rawValue).tag(fmt)
                     }
                 }
                 .pickerStyle(.segmented)
-                .frame(width: 150)
+                .fixedSize()
             }
 
             VStack(alignment: .leading, spacing: 4) {
