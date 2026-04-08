@@ -9,15 +9,19 @@
 /* Begin PBXBuildFile section */
 		4DE74DA367029D09DFCD254A /* DevAppCore in Frameworks */ = {isa = PBXBuildFile; productRef = 57ED970735B49D8092D048C3 /* DevAppCore */; };
 		521F98159BE0282B51CF419E /* APIClient in Frameworks */ = {isa = PBXBuildFile; productRef = 9DE7889CBAD97C4D6D6BCAA2 /* APIClient */; };
+		5A490AE1135C4CFE56DA9C0F /* ToolRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F706069CE7F18A563EE0C51 /* ToolRegistry.swift */; };
 		7BECBB976BA08E84513E2DE8 /* CryptoTools in Frameworks */ = {isa = PBXBuildFile; productRef = 70F202CAF23B1C6602368B33 /* CryptoTools */; };
 		8255F9EF2C310D0A33E11975 /* ConversionTools in Frameworks */ = {isa = PBXBuildFile; productRef = A3F5C5CB95BF15643BDF5556 /* ConversionTools */; };
 		828FA96AF9904E6712E8ADDA /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 416716C1D6CE01CEC7F1B54A /* ContentView.swift */; };
+		8622C0BDBF3776D2B47D428A /* SidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02E1C06628B8BDA10F824E4B /* SidebarView.swift */; };
 		F158617A1B87E20DFF2586FE /* MacDevAppApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 12930FBF61F663189B00F108 /* MacDevAppApp.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		02E1C06628B8BDA10F824E4B /* SidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarView.swift; sourceTree = "<group>"; };
 		12930FBF61F663189B00F108 /* MacDevAppApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacDevAppApp.swift; sourceTree = "<group>"; };
 		3A7560D3064F0BB5D09A8369 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		3F706069CE7F18A563EE0C51 /* ToolRegistry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolRegistry.swift; sourceTree = "<group>"; };
 		416716C1D6CE01CEC7F1B54A /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		69CCE1504D3EB106B6843F2E /* DevAppCore */ = {isa = PBXFileReference; lastKnownFileType = folder; name = DevAppCore; path = Packages/DevAppCore; sourceTree = SOURCE_ROOT; };
 		85631AA68C1015BA40C866C6 /* CryptoTools */ = {isa = PBXFileReference; lastKnownFileType = folder; name = CryptoTools; path = Packages/CryptoTools; sourceTree = SOURCE_ROOT; };
@@ -55,8 +59,18 @@
 				416716C1D6CE01CEC7F1B54A /* ContentView.swift */,
 				3A7560D3064F0BB5D09A8369 /* Info.plist */,
 				12930FBF61F663189B00F108 /* MacDevAppApp.swift */,
+				5031BCF6CD4DA8709032BC95 /* Navigation */,
 			);
 			path = MacDevApp;
+			sourceTree = "<group>";
+		};
+		5031BCF6CD4DA8709032BC95 /* Navigation */ = {
+			isa = PBXGroup;
+			children = (
+				02E1C06628B8BDA10F824E4B /* SidebarView.swift */,
+				3F706069CE7F18A563EE0C51 /* ToolRegistry.swift */,
+			);
+			path = Navigation;
 			sourceTree = "<group>";
 		};
 		B7B6FC77FBFB5B5C488FB2C6 = {
@@ -147,6 +161,8 @@
 			files = (
 				828FA96AF9904E6712E8ADDA /* ContentView.swift in Sources */,
 				F158617A1B87E20DFF2586FE /* MacDevAppApp.swift in Sources */,
+				8622C0BDBF3776D2B47D428A /* SidebarView.swift in Sources */,
+				5A490AE1135C4CFE56DA9C0F /* ToolRegistry.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
