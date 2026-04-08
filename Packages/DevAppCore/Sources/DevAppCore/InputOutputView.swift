@@ -28,36 +28,54 @@ public struct InputOutputView<ConfigContent: View>: View {
     }
 
     public var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 16) {
+            // Header
             VStack(alignment: .leading, spacing: 4) {
                 Text(title)
                     .font(.title2)
-                    .fontWeight(.semibold)
+                    .fontWeight(.bold)
                 Text(description)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
 
+            // Config area
             configContent()
+                .padding(.horizontal, 2)
 
-            HStack(spacing: 12) {
-                VStack(alignment: .leading, spacing: 4) {
+            // Input / Output panels
+            HStack(spacing: 16) {
+                // Input panel
+                VStack(alignment: .leading, spacing: 6) {
                     Text(inputLabel)
                         .font(.caption)
+                        .fontWeight(.medium)
                         .foregroundStyle(.secondary)
                         .textCase(.uppercase)
                     TextEditor(text: $input)
                         .font(.system(.body, design: .monospaced))
                         .scrollContentBackground(.hidden)
-                        .padding(8)
-                        .background(.fill.tertiary)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .padding(10)
+                        .background(.background.secondary)
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10)
+                                .stroke(.quaternary, lineWidth: 1)
+                        )
                 }
 
-                VStack(alignment: .leading, spacing: 4) {
+                // Arrow indicator
+                Image(systemName: "arrow.right")
+                    .font(.title3)
+                    .foregroundStyle(.tertiary)
+                    .frame(width: 20)
+
+                // Output panel
+                VStack(alignment: .leading, spacing: 6) {
                     HStack {
                         Text(outputLabel)
                             .font(.caption)
+                            .fontWeight(.medium)
                             .foregroundStyle(.secondary)
                             .textCase(.uppercase)
                         Spacer()
@@ -66,12 +84,16 @@ public struct InputOutputView<ConfigContent: View>: View {
                     TextEditor(text: .constant(output))
                         .font(.system(.body, design: .monospaced))
                         .scrollContentBackground(.hidden)
-                        .padding(8)
-                        .background(.fill.tertiary)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .padding(10)
+                        .background(.background.secondary)
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10)
+                                .stroke(.quaternary, lineWidth: 1)
+                        )
                 }
             }
         }
-        .padding()
+        .padding(20)
     }
 }

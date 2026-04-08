@@ -19,13 +19,20 @@ public struct CopyButton: View {
                 copied = false
             }
         } label: {
-            Label(
-                copied ? "Copied" : "Copy",
-                systemImage: copied ? "checkmark" : "doc.on.doc"
-            )
-            .font(.caption)
+            HStack(spacing: 4) {
+                Image(systemName: copied ? "checkmark" : "doc.on.doc")
+                    .font(.caption2)
+                Text(copied ? "Copied!" : "Copy")
+                    .font(.caption)
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(copied ? Color.green.opacity(0.15) : Color.secondary.opacity(0.1))
+            .clipShape(Capsule())
         }
-        .buttonStyle(.borderless)
+        .buttonStyle(.plain)
         .foregroundStyle(copied ? .green : .secondary)
+        .contentTransition(.symbolEffect(.replace))
+        .animation(.easeInOut(duration: 0.2), value: copied)
     }
 }

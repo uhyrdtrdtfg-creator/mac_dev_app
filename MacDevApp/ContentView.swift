@@ -12,13 +12,12 @@ struct ContentView: View {
             SidebarView(registry: registry)
         } detail: {
             if let toolID = registry.selectedToolID {
-                toolView(for: toolID)
+                ScrollView {
+                    toolView(for: toolID)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                ContentUnavailableView(
-                    "Select a Tool",
-                    systemImage: "wrench.and.screwdriver",
-                    description: Text("Choose a tool from the sidebar to get started.")
-                )
+                WelcomeView()
             }
         }
         .frame(minWidth: 900, minHeight: 650)
@@ -29,14 +28,11 @@ struct ContentView: View {
 
     private func registerAllTools() {
         registry.registerAll([
-            // Crypto
             HashGeneratorView.descriptor,
             HMACGeneratorView.descriptor,
             AESCryptorView.descriptor,
             RSACryptorView.descriptor,
-            // API Client
             APIClientView.descriptor,
-            // Conversion
             TimestampConverterView.descriptor,
             URLCodecView.descriptor,
             Base64CodecView.descriptor,
@@ -63,5 +59,65 @@ struct ContentView: View {
                 description: Text("Tool '\(id)' is not available.")
             )
         }
+    }
+}
+
+struct WelcomeView: View {
+    var body: some View {
+        VStack(spacing: 24) {
+            Spacer()
+
+            Image(systemName: "chevronleft.slash.chevronright")
+                .font(.system(size: 56, weight: .thin))
+                .foregroundStyle(.blue.gradient)
+
+            VStack(spacing: 8) {
+                Text("DevToolkit")
+                    .font(.largeTitle)
+                    .fontWeight(.bold)
+
+                Text("Your all-in-one developer companion")
+                    .font(.title3)
+                    .foregroundStyle(.secondary)
+            }
+
+            Divider()
+                .frame(width: 200)
+                .padding(.vertical, 4)
+
+            HStack(spacing: 40) {
+                featureItem(icon: "lock.shield.fill", title: "Crypto", description: "AES, RSA, Hash, HMAC", color: .blue)
+                featureItem(icon: "network", title: "API Client", description: "HTTP requests & responses", color: .green)
+                featureItem(icon: "arrow.2.squarepath", title: "Conversion", description: "Base64, URL, JSON, Time", color: .orange)
+            }
+
+            Text("Select a tool from the sidebar to get started")
+                .font(.callout)
+                .foregroundStyle(.tertiary)
+                .padding(.top, 8)
+
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private func featureItem(icon: String, title: String, description: String, color: Color) -> some View {
+        VStack(spacing: 8) {
+            Image(systemName: icon)
+                .font(.system(size: 28))
+                .foregroundStyle(color.gradient)
+                .frame(width: 52, height: 52)
+                .background(color.opacity(0.1))
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+
+            Text(title)
+                .font(.headline)
+
+            Text(description)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .frame(width: 140)
     }
 }
