@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 import DevAppCore
 import CryptoTools
 import ConversionTools
@@ -10,6 +11,12 @@ struct MacDevAppApp: App {
         WindowGroup {
             ContentView()
         }
+        .modelContainer(for: [
+            HTTPRequestModel.self,
+            HTTPCollectionModel.self,
+            HTTPHistoryModel.self
+        ])
         .windowStyle(.automatic)
+        .defaultSize(width: 1100, height: 750)
     }
 }

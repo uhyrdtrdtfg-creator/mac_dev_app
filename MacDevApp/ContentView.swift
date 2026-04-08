@@ -21,22 +21,47 @@ struct ContentView: View {
                 )
             }
         }
-        .frame(minWidth: 800, minHeight: 600)
+        .frame(minWidth: 900, minHeight: 650)
         .onAppear {
             registerAllTools()
         }
     }
 
     private func registerAllTools() {
-        // Tools will be registered as they are implemented.
+        registry.registerAll([
+            // Crypto
+            HashGeneratorView.descriptor,
+            HMACGeneratorView.descriptor,
+            AESCryptorView.descriptor,
+            RSACryptorView.descriptor,
+            // API Client
+            APIClientView.descriptor,
+            // Conversion
+            TimestampConverterView.descriptor,
+            URLCodecView.descriptor,
+            Base64CodecView.descriptor,
+            JSONFormatterView.descriptor,
+        ])
     }
 
     @ViewBuilder
     private func toolView(for id: String) -> some View {
-        ContentUnavailableView(
-            "Tool Not Found",
-            systemImage: "questionmark.circle",
-            description: Text("Tool '\(id)' is not yet implemented.")
-        )
+        switch id {
+        case "hash-generator": HashGeneratorView()
+        case "hmac-generator": HMACGeneratorView()
+        case "aes-cryptor": AESCryptorView()
+        case "rsa-cryptor": RSACryptorView()
+        case "http-client": APIClientView()
+        case "timestamp-converter": TimestampConverterView()
+        case "url-codec": URLCodecView()
+        case "base64-codec": Base64CodecView()
+        case "json-formatter": JSONFormatterView()
+        default:
+            ContentUnavailableView(
+                "Tool Not Found",
+                systemImage: "questionmark.circle",
+                description: Text("Tool '\(id)' is not available.")
+            )
+        }
     }
 }
