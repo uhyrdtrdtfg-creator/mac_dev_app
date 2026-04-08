@@ -1,0 +1,38 @@
+name: MacDevApp
+options:
+  bundleIdPrefix: com.macdevapp
+  deploymentTarget:
+    macOS: "26.0"
+  xcodeVersion: "16.0"
+  createIntermediateGroups: true
+
+packages:
+  DevAppCore:
+    path: Packages/DevAppCore
+  CryptoTools:
+    path: Packages/CryptoTools
+  ConversionTools:
+    path: Packages/ConversionTools
+  APIClient:
+    path: Packages/APIClient
+
+targets:
+  MacDevApp:
+    type: application
+    platform: macOS
+    sources:
+      - MacDevApp
+    dependencies:
+      - package: DevAppCore
+      - package: CryptoTools
+      - package: ConversionTools
+      - package: APIClient
+    settings:
+      PRODUCT_BUNDLE_IDENTIFIER: com.macdevapp.MacDevApp
+      PRODUCT_NAME: Mac Dev App
+      MARKETING_VERSION: "1.0.0"
+      CURRENT_PROJECT_VERSION: 1
+      SWIFT_VERSION: "6.0"
+      MACOSX_DEPLOYMENT_TARGET: "26.0"
+      INFOPLIST_FILE: MacDevApp/Info.plist
+      GENERATE_INFOPLIST_FILE: false
