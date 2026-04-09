@@ -295,4 +295,46 @@ echo "Done! ~/Desktop/DevToolkit.dmg"
 
 ---
 
+## 六、自动更新与发布
+
+### 发布方式
+
+**方式一：Tag 触发自动发布**
+
+```bash
+git tag v1.1.0
+git push origin v1.1.0
+```
+
+GitHub Actions 自动执行：构建 → 签名 → 公证 → Sparkle 签名 → 创建 Release → 更新 appcast.xml。
+
+**方式二：手动触发**
+
+GitHub repo → Actions → "Build, Notarize & Release" → Run workflow → 输入版本号。
+
+### 用户端更新流程
+
+1. 应用启动时 + 每小时自动检查 appcast.xml
+2. 发现新版本后静默下载 ZIP
+3. 验证 EdDSA 签名
+4. 用户退出应用时自动替换，下次启动即为新版
+
+### 密钥管理
+
+- **EdDSA 公钥**：写在 Info.plist 的 `SUPublicEDKey` 字段
+- **EdDSA 私钥**：存在 GitHub Secrets 的 `SPARKLE_PRIVATE_KEY`
+- **Developer ID 证书**：.p12 Base64 存在 GitHub Secrets
+
+如需重新生成 EdDSA 密钥对：
+
+```bash
+# 从 Sparkle release 获取工具
+/path/to/generate_keys        # 生成新密钥对
+/path/to/generate_keys -x /path/to/output  # 导出私钥
+```
+
+更新后需同步修改 Info.plist 中的公钥和 GitHub Secrets 中的私钥。
+
+---
+
 更新时间：2026-04-09
