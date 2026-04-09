@@ -136,6 +136,7 @@ struct SavedRequestsView: View {
             // Request list
             if filteredRequests.isEmpty {
                 ContentUnavailableView("No Saved APIs", systemImage: "bookmark", description: Text("Save a request to see it here"))
+                    .frame(maxHeight: .infinity)
             } else {
                 List {
                     ForEach(filteredRequests) { req in
