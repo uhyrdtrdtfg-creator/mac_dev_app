@@ -176,4 +176,90 @@ public enum ScriptEngine {
         jsContext.evaluateScript(script)
         return logs
     }
+
+    /// Run a rewrite script that can modify the response body, status, and headers.
+    /// Returns the modified context and logs.
+    public static func runRewriteScript(
+        _ script: String,
+        context: ScriptContext
+    ) -> (context: ScriptContext, logs: [ScriptConsoleOutput]) {
+        guard !script.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            return (context, [])
+        }
+
+        let jsContext = JSContext()!
+        var logs: [ScriptConsoleOutput] = []
+        var updatedContext = context
+
+        // Console
+        let consoleLog: @convention(block) (String) -> Void = { message in
+            logs.append(ScriptConsoleOutput(message: message))
+        }
+        let consoleError: @convention(block) (String) -> Void = { message in
+            logs.append(ScriptConsoleOutput(message: message, isError: true))
+        }
+        let console = JSValue(newObjectIn: jsContext)!
+        console.setObject(consoleLog, forKeyedSubscript: "log" as NSString)
+        console.setObject(consoleError, forKeyedSubscript: "error" as NSString)
+        jsContext.setObject(console, forKeyedSubscript: "console" as NSString)
+
+        // Response object (mutable)
+        let res = JSValue(newObjectIn: jsContext)!
+        res.setObject(context.responseStatus as Any, forKeyedSubscript: "status" as NSString)
+        res.setObject(context.responseHeaders as Any, forKeyedSubscript: "headers" as NSString)
+
+        // Parse body as JSON if possible, otherwise set as string
+        if let bodyString = context.responseBody,
+           let bodyData = bodyString.data(using: .utf8),
+           let jsonObj = try? JSONSerialization.jsonObject(with: bodyData) {
+            res.setObject(jsonObj, forKeyedSubscript: "body" as NSString)
+        } else {
+            res.setObject(context.responseBody as Any, forKeyedSubscript: "body" as NSString)
+        }
+
+        jsContext.setObject(res, forKeyedSubscript: "response" as NSString)
+
+        // Helper: JSON.stringify available by default in JSC
+        // Helper: response.json() to get parsed body
+        jsContext.evaluateScript("""
+        response.json = function() {
+            return typeof response.body === 'string' ? JSON.parse(response.body) : response.body;
+        };
+        """)
+
+        // Exception handler
+        jsContext.exceptionHandler = { _, exception in
+            if let msg = exception?.toString() {
+                logs.append(ScriptConsoleOutput(message: "Error: \(msg)", isError: true))
+            }
+        }
+
+        // Execute user script
+        jsContext.evaluateScript(script)
+
+        // Read back modified response
+        if let resObj = jsContext.objectForKeyedSubscript("response") {
+            if let status = resObj.objectForKeyedSubscript("status"), !status.isUndefined, !status.isNull {
+                updatedContext.responseStatus = Int(status.toInt32())
+            }
+            if let headers = resObj.objectForKeyedSubscript("headers")?.toDictionary() as? [String: String] {
+                updatedContext.responseHeaders = headers
+            }
+            if let bodyVal = resObj.objectForKeyedSubscript("body") {
+                if bodyVal.isString {
+                    updatedContext.responseBody = bodyVal.toString()
+                } else if !bodyVal.isUndefined && !bodyVal.isNull {
+                    // Object/Array — serialize back to JSON string
+                    if let jsonData = try? JSONSerialization.data(
+                        withJSONObject: bodyVal.toObject() as Any,
+                        options: [.prettyPrinted, .sortedKeys]
+                    ), let jsonStr = String(data: jsonData, encoding: .utf8) {
+                        updatedContext.responseBody = jsonStr
+                    }
+                }
+            }
+        }
+
+        return (updatedContext, logs)
+    }
 }

@@ -1,13 +1,65 @@
 import SwiftUI
 import DevAppCore
 
+private struct TimeZoneOption: Identifiable, Hashable {
+    let id: String
+    let label: String
+    let timeZone: TimeZone
+
+    init(_ identifier: String, label: String? = nil) {
+        self.id = identifier
+        self.label = label ?? identifier
+        self.timeZone = TimeZone(identifier: identifier) ?? .gmt
+    }
+
+    func hash(into hasher: inout Hasher) { hasher.combine(id) }
+    static func == (lhs: TimeZoneOption, rhs: TimeZoneOption) -> Bool { lhs.id == rhs.id }
+}
+
+private let commonTimeZones: [(String, [TimeZoneOption])] = [
+    ("Common", [
+        TimeZoneOption("GMT", label: "UTC / GMT"),
+        TimeZoneOption(TimeZone.current.identifier, label: "Local (\(TimeZone.current.identifier))"),
+    ]),
+    ("Asia", [
+        TimeZoneOption("Asia/Shanghai", label: "China (UTC+8)"),
+        TimeZoneOption("Asia/Tokyo", label: "Japan (UTC+9)"),
+        TimeZoneOption("Asia/Seoul", label: "Korea (UTC+9)"),
+        TimeZoneOption("Asia/Singapore", label: "Singapore (UTC+8)"),
+        TimeZoneOption("Asia/Hong_Kong", label: "Hong Kong (UTC+8)"),
+        TimeZoneOption("Asia/Taipei", label: "Taipei (UTC+8)"),
+        TimeZoneOption("Asia/Kolkata", label: "India (UTC+5:30)"),
+        TimeZoneOption("Asia/Dubai", label: "Dubai (UTC+4)"),
+    ]),
+    ("Americas", [
+        TimeZoneOption("America/New_York", label: "US Eastern"),
+        TimeZoneOption("America/Chicago", label: "US Central"),
+        TimeZoneOption("America/Denver", label: "US Mountain"),
+        TimeZoneOption("America/Los_Angeles", label: "US Pacific"),
+        TimeZoneOption("America/Sao_Paulo", label: "São Paulo"),
+    ]),
+    ("Europe", [
+        TimeZoneOption("Europe/London", label: "London"),
+        TimeZoneOption("Europe/Paris", label: "Central Europe"),
+        TimeZoneOption("Europe/Moscow", label: "Moscow"),
+    ]),
+    ("Oceania", [
+        TimeZoneOption("Australia/Sydney", label: "Sydney"),
+        TimeZoneOption("Pacific/Auckland", label: "Auckland"),
+    ]),
+]
+
 public struct TimestampConverterView: View {
     @State private var timestampInput = ""
     @State private var dateTimeInput = ""
-    @State private var selectedTimeZone: TimeZone = .current
+    @State private var selectedTimeZoneId: String = TimeZone.current.identifier
     @State private var nowTimestamp: Int64 = 0
     @State private var result: TimestampResult?
     @State private var timer: Timer?
+
+    private var selectedTimeZone: TimeZone {
+        TimeZone(identifier: selectedTimeZoneId) ?? .current
+    }
 
     public init() {}
 
@@ -24,10 +76,18 @@ public struct TimestampConverterView: View {
                 CopyButton(text: "\(nowTimestamp)")
             }.padding(10).background(.fill.tertiary).clipShape(RoundedRectangle(cornerRadius: 8))
 
-            Picker("Time Zone", selection: $selectedTimeZone) {
-                Text("UTC").tag(TimeZone.gmt)
-                Text("Local (\(TimeZone.current.identifier))").tag(TimeZone.current)
-            }.pickerStyle(.segmented).frame(width: 400)
+            HStack(spacing: 8) {
+                Text("Time Zone").font(.caption).foregroundStyle(.secondary).textCase(.uppercase)
+                Picker("Time Zone", selection: $selectedTimeZoneId) {
+                    ForEach(commonTimeZones, id: \.0) { group, zones in
+                        Section(group) {
+                            ForEach(zones) { zone in
+                                Text(zone.label).tag(zone.id)
+                            }
+                        }
+                    }
+                }.frame(width: 250)
+            }
 
             HStack(alignment: .top, spacing: 12) {
                 VStack(alignment: .leading, spacing: 4) {
@@ -54,7 +114,7 @@ public struct TimestampConverterView: View {
         .onDisappear { timer?.invalidate() }
         .onChange(of: timestampInput) { _, newValue in convertTimestamp(newValue) }
         .onChange(of: dateTimeInput) { _, newValue in convertDateTime(newValue) }
-        .onChange(of: selectedTimeZone) { _, _ in convertTimestamp(timestampInput) }
+        .onChange(of: selectedTimeZoneId) { _, _ in convertTimestamp(timestampInput) }
     }
 
     private func formatRow(_ label: String, _ value: String) -> some View {

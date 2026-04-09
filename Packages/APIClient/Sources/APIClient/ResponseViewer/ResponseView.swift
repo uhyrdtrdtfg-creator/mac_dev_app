@@ -10,6 +10,13 @@ enum ResponseTab: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 }
 
+enum RewriteMode: String, CaseIterable, Identifiable {
+    case manual = "Manual Edit"
+    case script = "Script"
+
+    var id: String { rawValue }
+}
+
 enum BodyDisplayMode: String, CaseIterable, Identifiable {
     case pretty = "Pretty"
     case raw = "Raw"
@@ -29,6 +36,9 @@ struct ResponseView: View {
     @State private var rewriteStatusCode = ""
     @State private var rewriteHeaders: [KeyValuePair] = []
     @State private var isRewriteApplied = false
+    @State private var rewriteScript = ""
+    @State private var rewriteScriptLogs: [ScriptConsoleOutput] = []
+    @State private var rewriteMode: RewriteMode = .manual
 
     init(response: HTTPResponse?, error: String?, curlCommand: String? = nil, onRewrite: ((HTTPResponse) -> Void)? = nil) {
         self.response = response
@@ -207,112 +217,221 @@ struct ResponseView: View {
     private func rewriteView(for response: HTTPResponse) -> some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
-                // Instructions
-                HStack(spacing: 6) {
+                // Mode toggle
+                HStack(spacing: 12) {
                     Image(systemName: "pencil.circle.fill")
                         .foregroundStyle(.purple)
-                    Text("Modify the response below and click Apply to use the rewritten version.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
 
-                // Status code
-                HStack(spacing: 12) {
-                    Text("Status Code")
-                        .font(.caption)
-                        .fontWeight(.medium)
-                        .foregroundStyle(.secondary)
-                        .frame(width: 80, alignment: .trailing)
-                    TextField("200", text: $rewriteStatusCode)
-                        .font(.system(.body, design: .monospaced))
-                        .textFieldStyle(.plain)
-                        .padding(8)
-                        .background(.fill.tertiary)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                        .frame(width: 100)
+                    Picker("Rewrite Mode", selection: $rewriteMode) {
+                        ForEach(RewriteMode.allCases) { mode in
+                            Text(mode.rawValue).tag(mode)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                    .fixedSize()
+
                     Spacer()
                 }
 
-                // Headers
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Response Headers")
-                        .font(.caption)
-                        .fontWeight(.medium)
-                        .foregroundStyle(.secondary)
-
-                    ForEach($rewriteHeaders) { $header in
-                        HStack(spacing: 8) {
-                            TextField("Header", text: $header.key)
-                                .font(.system(.caption, design: .monospaced))
-                                .textFieldStyle(.plain)
-                                .padding(6)
-                                .background(.fill.tertiary)
-                                .clipShape(RoundedRectangle(cornerRadius: 6))
-                            TextField("Value", text: $header.value)
-                                .font(.system(.caption, design: .monospaced))
-                                .textFieldStyle(.plain)
-                                .padding(6)
-                                .background(.fill.tertiary)
-                                .clipShape(RoundedRectangle(cornerRadius: 6))
-                            Button {
-                                rewriteHeaders.removeAll { $0.id == header.id }
-                            } label: {
-                                Image(systemName: "minus.circle")
-                                    .foregroundStyle(.secondary)
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-
-                    Button {
-                        rewriteHeaders.append(KeyValuePair())
-                    } label: {
-                        Label("Add Header", systemImage: "plus")
-                            .font(.caption)
-                    }
-                    .buttonStyle(.borderless)
-                }
-
-                // Body
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack {
-                        Text("Response Body")
-                            .font(.caption)
-                            .fontWeight(.medium)
-                            .foregroundStyle(.secondary)
-                        Spacer()
-                        Button("Format JSON") {
-                            formatRewriteBody()
-                        }
-                        .font(.caption)
-                        .buttonStyle(.borderless)
-                    }
-                    TextEditor(text: $rewriteBody)
-                        .font(.system(.body, design: .monospaced))
-                        .scrollContentBackground(.hidden)
-                        .padding(8)
-                        .background(.fill.tertiary)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                        .frame(minHeight: 120)
-                }
-
-                // Action buttons
-                HStack {
-                    Spacer()
-                    Button("Reset to Original") {
-                        populateRewriteFields(from: response)
-                        isRewriteApplied = false
-                    }
-                    .buttonStyle(.bordered)
-
-                    Button("Apply Rewrite") {
-                        applyRewrite()
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(.purple)
+                switch rewriteMode {
+                case .manual:
+                    manualRewriteContent(for: response)
+                case .script:
+                    scriptRewriteContent(for: response)
                 }
             }
             .padding(14)
+        }
+    }
+
+    @ViewBuilder
+    private func manualRewriteContent(for response: HTTPResponse) -> some View {
+        // Status code
+        HStack(spacing: 12) {
+            Text("Status Code")
+                .font(.caption)
+                .fontWeight(.medium)
+                .foregroundStyle(.secondary)
+                .frame(width: 80, alignment: .trailing)
+            TextField("200", text: $rewriteStatusCode)
+                .font(.system(.body, design: .monospaced))
+                .textFieldStyle(.plain)
+                .padding(8)
+                .background(.fill.tertiary)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .frame(width: 100)
+            Spacer()
+        }
+
+        // Headers
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Response Headers")
+                .font(.caption)
+                .fontWeight(.medium)
+                .foregroundStyle(.secondary)
+
+            ForEach($rewriteHeaders) { $header in
+                HStack(spacing: 8) {
+                    TextField("Header", text: $header.key)
+                        .font(.system(.caption, design: .monospaced))
+                        .textFieldStyle(.plain)
+                        .padding(6)
+                        .background(.fill.tertiary)
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                    TextField("Value", text: $header.value)
+                        .font(.system(.caption, design: .monospaced))
+                        .textFieldStyle(.plain)
+                        .padding(6)
+                        .background(.fill.tertiary)
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                    Button {
+                        rewriteHeaders.removeAll { $0.id == header.id }
+                    } label: {
+                        Image(systemName: "minus.circle")
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+
+            Button {
+                rewriteHeaders.append(KeyValuePair())
+            } label: {
+                Label("Add Header", systemImage: "plus")
+                    .font(.caption)
+            }
+            .buttonStyle(.borderless)
+        }
+
+        // Body
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text("Response Body")
+                    .font(.caption)
+                    .fontWeight(.medium)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Button("Format JSON") {
+                    formatRewriteBody()
+                }
+                .font(.caption)
+                .buttonStyle(.borderless)
+            }
+            TextEditor(text: $rewriteBody)
+                .font(.system(.body, design: .monospaced))
+                .scrollContentBackground(.hidden)
+                .padding(8)
+                .background(.fill.tertiary)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .frame(minHeight: 120)
+        }
+
+        // Action buttons
+        HStack {
+            Spacer()
+            Button("Reset to Original") {
+                populateRewriteFields(from: response)
+                isRewriteApplied = false
+            }
+            .buttonStyle(.bordered)
+
+            Button("Apply Rewrite") {
+                applyRewrite()
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(.purple)
+        }
+    }
+
+    @ViewBuilder
+    private func scriptRewriteContent(for response: HTTPResponse) -> some View {
+        // Hint
+        Text("Write JavaScript to transform the response. Access `response.body` (parsed JSON object), `response.status`, `response.headers`. Modify them directly — changes are applied when you click Run.")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+
+        // Script editor
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text("Rewrite Script")
+                    .font(.caption)
+                    .fontWeight(.medium)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Button("Example") {
+                    rewriteScript = """
+// Example: modify JSON response body
+var data = response.body;
+data.modified = true;
+data.timestamp = Date.now();
+response.body = data;
+
+// Change status code
+// response.status = 201;
+
+// Add/modify headers
+// response.headers["X-Rewritten"] = "true";
+
+console.log("Rewrite applied!");
+"""
+                }
+                .font(.caption)
+                .buttonStyle(.borderless)
+            }
+            TextEditor(text: $rewriteScript)
+                .font(.system(.body, design: .monospaced))
+                .scrollContentBackground(.hidden)
+                .padding(8)
+                .background(.fill.tertiary)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .frame(minHeight: 100)
+        }
+
+        // Console output
+        if !rewriteScriptLogs.isEmpty {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Console")
+                    .font(.caption)
+                    .fontWeight(.medium)
+                    .foregroundStyle(.secondary)
+
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 2) {
+                        ForEach(rewriteScriptLogs) { log in
+                            Text(log.message)
+                                .font(.system(.caption, design: .monospaced))
+                                .foregroundStyle(log.isError ? .red : .primary)
+                                .textSelection(.enabled)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                    }
+                    .padding(8)
+                }
+                .background(.black.opacity(0.05))
+                .clipShape(RoundedRectangle(cornerRadius: 6))
+                .frame(maxHeight: 100)
+            }
+        }
+
+        // Action buttons
+        HStack {
+            Spacer()
+            Button("Reset to Original") {
+                populateRewriteFields(from: response)
+                isRewriteApplied = false
+                rewriteScriptLogs = []
+            }
+            .buttonStyle(.bordered)
+
+            Button {
+                runRewriteScript(for: response)
+            } label: {
+                Label("Run & Apply", systemImage: "play.fill")
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(.purple)
+            .disabled(rewriteScript.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         }
     }
 
@@ -355,6 +474,48 @@ struct ResponseView: View {
 
         isRewriteApplied = true
         onRewrite?(rewritten)
+    }
+
+    private func runRewriteScript(for response: HTTPResponse) {
+        rewriteScriptLogs = []
+        let bodyString = String(data: response.body, encoding: .utf8) ?? ""
+        var ctx = ScriptContext(
+            requestMethod: "",
+            requestURL: "",
+            requestHeaders: [:],
+            responseStatus: response.statusCode,
+            responseBody: bodyString,
+            responseHeaders: response.headers,
+            responseDuration: response.duration
+        )
+
+        let result = ScriptEngine.runRewriteScript(rewriteScript, context: ctx)
+        rewriteScriptLogs = result.logs
+
+        // Apply the rewritten values
+        let updated = result.context
+        let newStatusCode = updated.responseStatus ?? response.statusCode
+        let newBody = Data((updated.responseBody ?? bodyString).utf8)
+        let newHeaders = updated.responseHeaders ?? response.headers
+
+        let rewritten = HTTPResponse(
+            statusCode: newStatusCode,
+            headers: newHeaders,
+            body: newBody,
+            duration: response.duration,
+            bodySize: newBody.count,
+            cookies: response.cookies
+        )
+
+        isRewriteApplied = true
+        onRewrite?(rewritten)
+
+        // Also update manual fields to reflect script changes
+        rewriteBody = updated.responseBody ?? bodyString
+        rewriteStatusCode = "\(newStatusCode)"
+        rewriteHeaders = newHeaders.sorted(by: { $0.key < $1.key }).map {
+            KeyValuePair(key: $0.key, value: $0.value)
+        }
     }
 
     private func isJSON(_ s: String) -> Bool {
