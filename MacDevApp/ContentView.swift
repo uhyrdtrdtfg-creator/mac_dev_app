@@ -12,7 +12,7 @@ struct ContentView: View {
             SidebarView(registry: registry)
         } detail: {
             if let toolID = registry.selectedToolID {
-                if toolID == "http-client" {
+                if toolID == "http-client" || toolID == "markdown-preview" {
                     toolView(for: toolID)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
@@ -56,6 +56,7 @@ struct ContentView: View {
             TextAnalyzerView.descriptor,
             LoremIpsumGeneratorView.descriptor,
             JSONYamlView.descriptor,
+            MarkdownPreviewView.descriptor,
         ])
     }
 
@@ -82,6 +83,7 @@ struct ContentView: View {
         case "text-analyzer": TextAnalyzerView()
         case "lorem-ipsum": LoremIpsumGeneratorView()
         case "json-yaml": JSONYamlView()
+        case "markdown-preview": MarkdownPreviewView()
         default:
             ContentUnavailableView(
                 "Tool Not Found",
