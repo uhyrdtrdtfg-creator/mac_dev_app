@@ -148,13 +148,22 @@ jobs:
         env:
           SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
         run: |
-          # sign_update reads the private key from stdin
-          SIGN_OUTPUT=$(echo "$SPARKLE_PRIVATE_KEY" | "$SPARKLE_BIN/sign_update" "$ZIP_PATH")
+          # Write private key to temp file for sign_update
+          KEY_FILE="$RUNNER_TEMP/sparkle_key"
+          echo "$SPARKLE_PRIVATE_KEY" > "$KEY_FILE"
+
+          SIGN_OUTPUT=$("$SPARKLE_BIN/sign_update" "$ZIP_PATH" -f "$KEY_FILE" 2>&1) || true
           echo "Sparkle signature output: $SIGN_OUTPUT"
+          rm -f "$KEY_FILE"
 
           # Parse: sparkle:edSignature="..." length="..."
           ED_SIGNATURE=$(echo "$SIGN_OUTPUT" | sed -n 's/.*sparkle:edSignature="\([^"]*\)".*/\1/p')
           LENGTH=$(echo "$SIGN_OUTPUT" | sed -n 's/.*length="\([^"]*\)".*/\1/p')
+
+          if [ -z "$ED_SIGNATURE" ] || [ -z "$LENGTH" ]; then
+            echo "::error::Failed to parse Sparkle signature. Output: $SIGN_OUTPUT"
+            exit 1
+          fi
 
           echo "ed_signature=$ED_SIGNATURE" >> "$GITHUB_ENV"
           echo "length=$LENGTH" >> "$GITHUB_ENV"
