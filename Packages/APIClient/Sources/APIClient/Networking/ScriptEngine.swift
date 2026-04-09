@@ -57,7 +57,62 @@ public enum ScriptEngine {
         return sharedEnvStore
     }
 
-    /// Run a pre-script with Postman compatibility (pm, CryptoJS, polyfills)
+    // MARK: - Console Setup (multi-argument support)
+
+    /// Sets up console.log/error/warn/info with proper multi-argument support
+    /// like browser/Node.js: console.log("label:", value, "more:", value2)
+    private static func setupConsole(_ jsContext: JSContext, logs: UnsafeMutablePointer<[ScriptConsoleOutput]>) {
+        let nativeLog: @convention(block) (String) -> Void = { message in
+            logs.pointee.append(ScriptConsoleOutput(message: message))
+        }
+        let nativeError: @convention(block) (String) -> Void = { message in
+            logs.pointee.append(ScriptConsoleOutput(message: message, isError: true))
+        }
+        jsContext.setObject(nativeLog, forKeyedSubscript: "__nativeLog" as NSString)
+        jsContext.setObject(nativeError, forKeyedSubscript: "__nativeError" as NSString)
+
+        jsContext.evaluateScript("""
+        var console = {
+            log: function() {
+                var parts = [];
+                for (var i = 0; i < arguments.length; i++) {
+                    var arg = arguments[i];
+                    if (arg === null) parts.push('null');
+                    else if (arg === undefined) parts.push('undefined');
+                    else if (typeof arg === 'object') {
+                        try { parts.push(JSON.stringify(arg)); } catch(e) { parts.push(String(arg)); }
+                    } else parts.push(String(arg));
+                }
+                __nativeLog(parts.join(' '));
+            },
+            error: function() {
+                var parts = [];
+                for (var i = 0; i < arguments.length; i++) {
+                    var arg = arguments[i];
+                    if (arg === null) parts.push('null');
+                    else if (arg === undefined) parts.push('undefined');
+                    else if (typeof arg === 'object') {
+                        try { parts.push(JSON.stringify(arg)); } catch(e) { parts.push(String(arg)); }
+                    } else parts.push(String(arg));
+                }
+                __nativeError(parts.join(' '));
+            },
+            warn: function() { console.log.apply(null, arguments); },
+            info: function() { console.log.apply(null, arguments); }
+        };
+        """)
+    }
+
+    private static func setupExceptionHandler(_ jsContext: JSContext, logs: UnsafeMutablePointer<[ScriptConsoleOutput]>) {
+        jsContext.exceptionHandler = { _, exception in
+            if let msg = exception?.toString() {
+                logs.pointee.append(ScriptConsoleOutput(message: "Error: \(msg)", isError: true))
+            }
+        }
+    }
+
+    // MARK: - Pre-Script (with Postman compatibility)
+
     public static func runPreScriptCompat(
         _ script: String,
         context: ScriptContext
@@ -70,25 +125,8 @@ public enum ScriptEngine {
         var logs: [ScriptConsoleOutput] = []
         var updatedContext = context
 
-        // Set up console.log / console.error
-        let consoleLog: @convention(block) (String) -> Void = { message in
-            logs.append(ScriptConsoleOutput(message: message))
-        }
-        let consoleError: @convention(block) (String) -> Void = { message in
-            logs.append(ScriptConsoleOutput(message: message, isError: true))
-        }
-
-        let console = JSValue(newObjectIn: jsContext)!
-        console.setObject(consoleLog, forKeyedSubscript: "log" as NSString)
-        console.setObject(consoleError, forKeyedSubscript: "error" as NSString)
-        jsContext.setObject(console, forKeyedSubscript: "console" as NSString)
-
-        // Exception handler
-        jsContext.exceptionHandler = { _, exception in
-            if let msg = exception?.toString() {
-                logs.append(ScriptConsoleOutput(message: "Error: \(msg)", isError: true))
-            }
-        }
+        setupConsole(jsContext, logs: &logs)
+        setupExceptionHandler(jsContext, logs: &logs)
 
         // Inject Postman compat: pm object, CryptoJS, atob/btoa, TextEncoder, crypto
         PostmanCompat.setup(jsContext, context: context, envStore: sharedEnvStore)
@@ -136,6 +174,8 @@ public enum ScriptEngine {
         return (updatedContext, logs)
     }
 
+    // MARK: - Pre-Script (legacy, no Postman compat)
+
     public static func runPreScript(
         _ script: String,
         context: ScriptContext
@@ -148,20 +188,9 @@ public enum ScriptEngine {
         var logs: [ScriptConsoleOutput] = []
         var updatedContext = context
 
-        // Set up console.log / console.error
-        let consoleLog: @convention(block) (String) -> Void = { message in
-            logs.append(ScriptConsoleOutput(message: message))
-        }
-        let consoleError: @convention(block) (String) -> Void = { message in
-            logs.append(ScriptConsoleOutput(message: message, isError: true))
-        }
+        setupConsole(jsContext, logs: &logs)
+        setupExceptionHandler(jsContext, logs: &logs)
 
-        let console = JSValue(newObjectIn: jsContext)!
-        console.setObject(consoleLog, forKeyedSubscript: "log" as NSString)
-        console.setObject(consoleError, forKeyedSubscript: "error" as NSString)
-        jsContext.setObject(console, forKeyedSubscript: "console" as NSString)
-
-        // Set up request object
         let req = JSValue(newObjectIn: jsContext)!
         req.setObject(context.requestMethod, forKeyedSubscript: "method" as NSString)
         req.setObject(context.requestURL, forKeyedSubscript: "url" as NSString)
@@ -169,17 +198,8 @@ public enum ScriptEngine {
         req.setObject(context.requestBody as Any, forKeyedSubscript: "body" as NSString)
         jsContext.setObject(req, forKeyedSubscript: "request" as NSString)
 
-        // Exception handler
-        jsContext.exceptionHandler = { _, exception in
-            if let msg = exception?.toString() {
-                logs.append(ScriptConsoleOutput(message: "Error: \(msg)", isError: true))
-            }
-        }
-
-        // Execute
         jsContext.evaluateScript(script)
 
-        // Read back modified request
         if let reqObj = jsContext.objectForKeyedSubscript("request") {
             if let method = reqObj.objectForKeyedSubscript("method")?.toString(), method != "undefined" {
                 updatedContext.requestMethod = method
@@ -198,6 +218,8 @@ public enum ScriptEngine {
         return (updatedContext, logs)
     }
 
+    // MARK: - Post-Script
+
     public static func runPostScript(
         _ script: String,
         context: ScriptContext
@@ -209,26 +231,14 @@ public enum ScriptEngine {
         let jsContext = JSContext()!
         var logs: [ScriptConsoleOutput] = []
 
-        // Console
-        let consoleLog: @convention(block) (String) -> Void = { message in
-            logs.append(ScriptConsoleOutput(message: message))
-        }
-        let consoleError: @convention(block) (String) -> Void = { message in
-            logs.append(ScriptConsoleOutput(message: message, isError: true))
-        }
+        setupConsole(jsContext, logs: &logs)
+        setupExceptionHandler(jsContext, logs: &logs)
 
-        let console = JSValue(newObjectIn: jsContext)!
-        console.setObject(consoleLog, forKeyedSubscript: "log" as NSString)
-        console.setObject(consoleError, forKeyedSubscript: "error" as NSString)
-        jsContext.setObject(console, forKeyedSubscript: "console" as NSString)
-
-        // Request object (read-only context)
         let req = JSValue(newObjectIn: jsContext)!
         req.setObject(context.requestMethod, forKeyedSubscript: "method" as NSString)
         req.setObject(context.requestURL, forKeyedSubscript: "url" as NSString)
         jsContext.setObject(req, forKeyedSubscript: "request" as NSString)
 
-        // Response object
         let res = JSValue(newObjectIn: jsContext)!
         res.setObject(context.responseStatus as Any, forKeyedSubscript: "status" as NSString)
         res.setObject(context.responseBody as Any, forKeyedSubscript: "body" as NSString)
@@ -236,17 +246,6 @@ public enum ScriptEngine {
         res.setObject(context.responseDuration as Any, forKeyedSubscript: "duration" as NSString)
         jsContext.setObject(res, forKeyedSubscript: "response" as NSString)
 
-        // Simple test/assert helpers
-        let testPass: @convention(block) (String) -> Void = { name in
-            logs.append(ScriptConsoleOutput(message: "PASS: \(name)"))
-        }
-        let testFail: @convention(block) (String) -> Void = { name in
-            logs.append(ScriptConsoleOutput(message: "FAIL: \(name)", isError: true))
-        }
-        jsContext.setObject(testPass, forKeyedSubscript: "pass" as NSString)
-        jsContext.setObject(testFail, forKeyedSubscript: "fail" as NSString)
-
-        // assert(condition, name) helper
         let assertBlock: @convention(block) (Bool, String) -> Void = { condition, name in
             if condition {
                 logs.append(ScriptConsoleOutput(message: "PASS: \(name)"))
@@ -256,19 +255,12 @@ public enum ScriptEngine {
         }
         jsContext.setObject(assertBlock, forKeyedSubscript: "assert" as NSString)
 
-        // Exception handler
-        jsContext.exceptionHandler = { _, exception in
-            if let msg = exception?.toString() {
-                logs.append(ScriptConsoleOutput(message: "Error: \(msg)", isError: true))
-            }
-        }
-
         jsContext.evaluateScript(script)
         return logs
     }
 
-    /// Run a rewrite script that can modify the response body, status, and headers.
-    /// Returns the modified context and logs.
+    // MARK: - Rewrite Script
+
     public static func runRewriteScript(
         _ script: String,
         context: ScriptContext
@@ -281,24 +273,13 @@ public enum ScriptEngine {
         var logs: [ScriptConsoleOutput] = []
         var updatedContext = context
 
-        // Console
-        let consoleLog: @convention(block) (String) -> Void = { message in
-            logs.append(ScriptConsoleOutput(message: message))
-        }
-        let consoleError: @convention(block) (String) -> Void = { message in
-            logs.append(ScriptConsoleOutput(message: message, isError: true))
-        }
-        let console = JSValue(newObjectIn: jsContext)!
-        console.setObject(consoleLog, forKeyedSubscript: "log" as NSString)
-        console.setObject(consoleError, forKeyedSubscript: "error" as NSString)
-        jsContext.setObject(console, forKeyedSubscript: "console" as NSString)
+        setupConsole(jsContext, logs: &logs)
+        setupExceptionHandler(jsContext, logs: &logs)
 
-        // Response object (mutable)
         let res = JSValue(newObjectIn: jsContext)!
         res.setObject(context.responseStatus as Any, forKeyedSubscript: "status" as NSString)
         res.setObject(context.responseHeaders as Any, forKeyedSubscript: "headers" as NSString)
 
-        // Parse body as JSON if possible, otherwise set as string
         if let bodyString = context.responseBody,
            let bodyData = bodyString.data(using: .utf8),
            let jsonObj = try? JSONSerialization.jsonObject(with: bodyData) {
@@ -309,25 +290,14 @@ public enum ScriptEngine {
 
         jsContext.setObject(res, forKeyedSubscript: "response" as NSString)
 
-        // Helper: JSON.stringify available by default in JSC
-        // Helper: response.json() to get parsed body
         jsContext.evaluateScript("""
         response.json = function() {
             return typeof response.body === 'string' ? JSON.parse(response.body) : response.body;
         };
         """)
 
-        // Exception handler
-        jsContext.exceptionHandler = { _, exception in
-            if let msg = exception?.toString() {
-                logs.append(ScriptConsoleOutput(message: "Error: \(msg)", isError: true))
-            }
-        }
-
-        // Execute user script
         jsContext.evaluateScript(script)
 
-        // Read back modified response
         if let resObj = jsContext.objectForKeyedSubscript("response") {
             if let status = resObj.objectForKeyedSubscript("status"), !status.isUndefined, !status.isNull {
                 updatedContext.responseStatus = Int(status.toInt32())
@@ -339,7 +309,6 @@ public enum ScriptEngine {
                 if bodyVal.isString {
                     updatedContext.responseBody = bodyVal.toString()
                 } else if !bodyVal.isUndefined && !bodyVal.isNull {
-                    // Object/Array — serialize back to JSON string
                     if let jsonData = try? JSONSerialization.data(
                         withJSONObject: bodyVal.toObject() as Any,
                         options: [.prettyPrinted, .sortedKeys]
