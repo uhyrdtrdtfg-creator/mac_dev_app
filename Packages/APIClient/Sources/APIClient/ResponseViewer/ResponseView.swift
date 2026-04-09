@@ -109,16 +109,15 @@ struct ResponseView: View {
 
                     Spacer()
 
-                    if selectedTab == .body {
-                        Picker("Display Mode", selection: $bodyMode) {
-                            ForEach(BodyDisplayMode.allCases) { mode in
-                                Text(mode.rawValue).tag(mode)
-                            }
+                    Picker("Display Mode", selection: $bodyMode) {
+                        ForEach(BodyDisplayMode.allCases) { mode in
+                            Text(mode.rawValue).tag(mode)
                         }
-                        .pickerStyle(.segmented)
-                        .labelsHidden()
-                        .fixedSize()
                     }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                    .fixedSize()
+                    .opacity(selectedTab == .body ? 1 : 0)
                 }
                 .padding(.horizontal, 12)
 
@@ -217,6 +216,7 @@ struct ResponseView: View {
                     Image(systemName: "pencil.circle.fill")
                         .foregroundStyle(.purple)
 
+
                     Picker("Rewrite Mode", selection: $rewriteMode) {
                         ForEach(RewriteMode.allCases) { mode in
                             Text(mode.rawValue).tag(mode)
@@ -236,6 +236,7 @@ struct ResponseView: View {
                     scriptRewriteContent(for: response)
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(14)
         }
     }
@@ -520,9 +521,14 @@ console.log("Rewrite applied!");
             selectedTab = tab
         } label: {
             Text(tab.rawValue)
-                .font(.subheadline)
-                .fontWeight(selectedTab == tab ? .semibold : .regular)
-                .foregroundStyle(selectedTab == tab ? .primary : .secondary)
+                .font(.subheadline.weight(.semibold))
+                .hidden()
+                .overlay {
+                    Text(tab.rawValue)
+                        .font(.subheadline)
+                        .fontWeight(selectedTab == tab ? .semibold : .regular)
+                        .foregroundStyle(selectedTab == tab ? .primary : .secondary)
+                }
                 .padding(.horizontal, 14)
                 .padding(.vertical, 8)
                 .overlay(alignment: .bottom) {

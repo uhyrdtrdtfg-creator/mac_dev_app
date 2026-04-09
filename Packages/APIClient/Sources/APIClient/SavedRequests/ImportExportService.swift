@@ -42,6 +42,83 @@ public enum ImportExportService {
         return json
     }
 
+    // MARK: - Export as Postman Collection v2.1
+
+    public static func exportAsPostmanCollection(_ requests: [SavedRequestModel], name: String = "DevToolkit Collection") -> String {
+        let items: [[String: Any]] = requests.map { req in
+            var item: [String: Any] = ["name": req.name]
+
+            // Request object
+            var request: [String: Any] = [
+                "method": req.method,
+                "url": ["raw": req.url, "protocol": "", "host": [] as [String], "path": [] as [String]] as [String: Any]
+            ]
+
+            // Headers
+            let headers = req.headers.filter { !$0.key.isEmpty }
+            if !headers.isEmpty {
+                request["header"] = headers.map {
+                    var h: [String: Any] = ["key": $0.key, "value": $0.value]
+                    if !$0.isEnabled { h["disabled"] = true }
+                    return h
+                }
+            }
+
+            // Body
+            if let bodyType = req.bodyType {
+                if bodyType == "json" || bodyType == "raw" {
+                    if case .json(let raw) = req.body {
+                        request["body"] = [
+                            "mode": "raw",
+                            "raw": raw,
+                            "options": ["raw": ["language": bodyType == "json" ? "json" : "text"]]
+                        ] as [String: Any]
+                    }
+                } else if bodyType == "formData" {
+                    if case .formData(let pairs) = req.body {
+                        request["body"] = [
+                            "mode": "formdata",
+                            "formdata": pairs.map { ["key": $0.key, "value": $0.value, "type": "text"] as [String: Any] }
+                        ] as [String: Any]
+                    }
+                }
+            }
+
+            item["request"] = request
+
+            // Scripts (events)
+            var events: [[String: Any]] = []
+            if let pre = req.preScript, !pre.isEmpty {
+                events.append([
+                    "listen": "prerequest",
+                    "script": ["type": "text/javascript", "exec": pre.components(separatedBy: "\n")]
+                ])
+            }
+            if let post = req.postScript, !post.isEmpty {
+                events.append([
+                    "listen": "test",
+                    "script": ["type": "text/javascript", "exec": post.components(separatedBy: "\n")]
+                ])
+            }
+            if !events.isEmpty { item["event"] = events }
+
+            return item
+        }
+
+        let collection: [String: Any] = [
+            "info": [
+                "name": name,
+                "_postman_id": UUID().uuidString,
+                "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+            ],
+            "item": items
+        ]
+
+        guard let data = try? JSONSerialization.data(withJSONObject: collection, options: [.prettyPrinted, .sortedKeys]),
+              let json = String(data: data, encoding: .utf8) else { return "{}" }
+        return json
+    }
+
     // MARK: - Import DevToolkit JSON
 
     public static func importDevToolkitJSON(_ json: String) -> [SavedRequestModel] {

@@ -12,12 +12,20 @@ struct SavedRequestsView: View {
     @State private var showImportSheet = false
     @State private var importText = ""
     @State private var importFormat: ImportFormat = .postmanCollection
+    @State private var showExportSheet = false
+    @State private var exportFormat: ExportFormat = .postmanCollection
 
     let onSelect: (SavedRequestModel) -> Void
 
     enum ImportFormat: String, CaseIterable, Identifiable {
         case postmanCollection = "Postman Collection"
         case curl = "cURL Commands"
+        var id: String { rawValue }
+    }
+
+    enum ExportFormat: String, CaseIterable, Identifiable {
+        case postmanCollection = "Postman Collection"
+        case devToolkit = "DevToolkit JSON"
         var id: String { rawValue }
     }
 
@@ -70,6 +78,32 @@ struct SavedRequestsView: View {
                 }
                 .buttonStyle(.borderless)
                 .help("Export All")
+                .popover(isPresented: $showExportSheet) {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Export Format").font(.headline)
+                        Picker("Format", selection: $exportFormat) {
+                            ForEach(ExportFormat.allCases) { fmt in
+                                Text(fmt.rawValue).tag(fmt)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+                        .labelsHidden()
+                        Text(exportFormat == .postmanCollection
+                             ? "Exports as Postman Collection v2.1 (compatible with Postman import). Includes pre-request and test scripts."
+                             : "Exports as DevToolkit JSON. Includes all scripts (pre/post/rewrite).")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        HStack {
+                            Spacer()
+                            Button("Cancel") { showExportSheet = false }
+                                .buttonStyle(.bordered)
+                            Button("Export") { performExport(); showExportSheet = false }
+                                .buttonStyle(.borderedProminent)
+                        }
+                    }
+                    .padding()
+                    .frame(width: 380)
+                }
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
@@ -230,13 +264,23 @@ struct SavedRequestsView: View {
     // MARK: - Export
 
     private func exportAll() {
-        let json = ImportExportService.exportAsJSON(savedRequests)
-        let pasteboard = NSPasteboard.general
-        pasteboard.clearContents()
-        pasteboard.setString(json, forType: .string)
-        // Also offer to save as file
+        showExportSheet = true
+    }
+
+    private func performExport() {
+        let json: String
+        let filename: String
+        switch exportFormat {
+        case .postmanCollection:
+            json = ImportExportService.exportAsPostmanCollection(savedRequests)
+            filename = "DevToolkit_Collection.postman_collection.json"
+        case .devToolkit:
+            json = ImportExportService.exportAsJSON(savedRequests)
+            filename = "DevToolkit_APIs.json"
+        }
+
         let panel = NSSavePanel()
-        panel.nameFieldStringValue = "DevToolkit_APIs.json"
+        panel.nameFieldStringValue = filename
         panel.allowedContentTypes = [.json]
         panel.begin { result in
             if result == .OK, let url = panel.url {

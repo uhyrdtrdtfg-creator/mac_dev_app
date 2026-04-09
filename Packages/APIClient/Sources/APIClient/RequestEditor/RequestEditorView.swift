@@ -54,7 +54,7 @@ struct RequestEditorView: View {
 
             // Content
             ScrollView {
-                Group {
+                VStack(alignment: .leading, spacing: 0) {
                     switch selectedTab {
                     case .params:
                         KeyValueEditor(pairs: $queryParams, keyPlaceholder: "Parameter", valuePlaceholder: "Value")
@@ -68,6 +68,7 @@ struct RequestEditorView: View {
                         ScriptEditorView(preScript: $preScript, postScript: $postScript, consoleLogs: consoleLogs)
                     }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(16)
             }
         }
@@ -78,9 +79,14 @@ struct RequestEditorView: View {
             selectedTab = tab
         } label: {
             Text(tab.rawValue)
-                .font(.subheadline)
-                .fontWeight(selectedTab == tab ? .semibold : .regular)
-                .foregroundStyle(selectedTab == tab ? .primary : .secondary)
+                .font(.subheadline.weight(.semibold))
+                .hidden()
+                .overlay {
+                    Text(tab.rawValue)
+                        .font(.subheadline)
+                        .fontWeight(selectedTab == tab ? .semibold : .regular)
+                        .foregroundStyle(selectedTab == tab ? .primary : .secondary)
+                }
                 .padding(.horizontal, 14)
                 .padding(.vertical, 8)
                 .overlay(alignment: .bottom) {
