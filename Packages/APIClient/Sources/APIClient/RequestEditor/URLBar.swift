@@ -7,7 +7,8 @@ struct URLBar: View {
     let isSending: Bool
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 0) {
+            // Method selector
             Picker("Method", selection: $method) {
                 ForEach(HTTPMethod.allCases) { m in
                     Text(m.rawValue).tag(m)
@@ -15,26 +16,54 @@ struct URLBar: View {
             }
             .pickerStyle(.menu)
             .fixedSize()
+            .font(.system(.body, design: .monospaced).weight(.bold))
+            .foregroundStyle(method.color)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 6)
+            .background(method.color.opacity(0.08))
+            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
 
+            // URL input
             TextField("https://api.example.com/endpoint", text: $url)
                 .font(.system(.body, design: .monospaced))
                 .textFieldStyle(.plain)
-                .padding(8)
-                .background(.fill.tertiary)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .padding(.horizontal, 10)
+                .padding(.vertical, 8)
                 .onSubmit { onSend() }
 
+            // Send button
             Button(action: onSend) {
                 if isSending {
                     ProgressView()
                         .controlSize(.small)
+                        .frame(width: 50)
                 } else {
                     Text("Send")
-                        .fontWeight(.medium)
+                        .fontWeight(.semibold)
+                        .frame(width: 50)
                 }
             }
             .buttonStyle(.borderedProminent)
+            .controlSize(.large)
             .disabled(isSending || url.isEmpty)
+        }
+        .padding(4)
+        .background(.fill.tertiary)
+        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).stroke(.separator, lineWidth: 0.5))
+    }
+}
+
+extension HTTPMethod {
+    var color: Color {
+        switch self {
+        case .get: .green
+        case .post: .orange
+        case .put: .blue
+        case .patch: .purple
+        case .delete: .red
+        case .head: .secondary
+        case .options: .secondary
         }
     }
 }

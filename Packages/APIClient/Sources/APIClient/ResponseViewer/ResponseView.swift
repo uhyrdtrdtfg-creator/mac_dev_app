@@ -99,14 +99,12 @@ struct ResponseView: View {
                 .padding(12)
 
                 // Tabs + controls
-                HStack {
-                    Picker("Response Tab", selection: $selectedTab) {
-                        ForEach(ResponseTab.allCases) { tab in
-                            Text(tab.rawValue).tag(tab)
-                        }
+                HStack(spacing: 0) {
+                    ForEach(ResponseTab.allCases) { tab in
+                        responseTabButton(tab)
                     }
-                    .pickerStyle(.segmented)
-                    .labelsHidden()
+
+                    Spacer()
 
                     if selectedTab == .body {
                         Picker("Display Mode", selection: $bodyMode) {
@@ -504,6 +502,28 @@ console.log("Rewrite applied!");
         rewriteHeaders = newHeaders.sorted(by: { $0.key < $1.key }).map {
             KeyValuePair(key: $0.key, value: $0.value)
         }
+    }
+
+    private func responseTabButton(_ tab: ResponseTab) -> some View {
+        Button {
+            selectedTab = tab
+        } label: {
+            Text(tab.rawValue)
+                .font(.subheadline)
+                .fontWeight(selectedTab == tab ? .semibold : .regular)
+                .foregroundStyle(selectedTab == tab ? .primary : .secondary)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .overlay(alignment: .bottom) {
+                    if selectedTab == tab {
+                        Rectangle()
+                            .fill(Color.accentColor)
+                            .frame(height: 2)
+                            .offset(y: 1)
+                    }
+                }
+        }
+        .buttonStyle(.plain)
     }
 
     private func isJSON(_ s: String) -> Bool {

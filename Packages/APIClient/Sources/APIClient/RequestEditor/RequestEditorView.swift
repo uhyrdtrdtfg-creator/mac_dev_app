@@ -37,20 +37,22 @@ struct RequestEditorView: View {
     var body: some View {
         VStack(spacing: 0) {
             URLBar(method: $method, url: $url, onSend: onSend, isSending: isSending)
-                .padding(12)
+                .padding(.horizontal, 16)
+                .padding(.top, 12)
+                .padding(.bottom, 8)
 
-            Picker("Request Tab", selection: $selectedTab) {
+            // Tab bar
+            HStack(spacing: 0) {
                 ForEach(RequestTab.allCases) { tab in
-                    Text(tab.rawValue).tag(tab)
+                    tabButton(tab)
                 }
+                Spacer()
             }
-            .pickerStyle(.segmented)
-            .labelsHidden()
             .padding(.horizontal, 12)
 
             Divider()
-                .padding(.top, 8)
 
+            // Content
             ScrollView {
                 Group {
                     switch selectedTab {
@@ -66,8 +68,30 @@ struct RequestEditorView: View {
                         ScriptEditorView(preScript: $preScript, postScript: $postScript, consoleLogs: consoleLogs)
                     }
                 }
-                .padding(12)
+                .padding(16)
             }
         }
+    }
+
+    private func tabButton(_ tab: RequestTab) -> some View {
+        Button {
+            selectedTab = tab
+        } label: {
+            Text(tab.rawValue)
+                .font(.subheadline)
+                .fontWeight(selectedTab == tab ? .semibold : .regular)
+                .foregroundStyle(selectedTab == tab ? .primary : .secondary)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .overlay(alignment: .bottom) {
+                    if selectedTab == tab {
+                        Rectangle()
+                            .fill(Color.accentColor)
+                            .frame(height: 2)
+                            .offset(y: 1)
+                    }
+                }
+        }
+        .buttonStyle(.plain)
     }
 }

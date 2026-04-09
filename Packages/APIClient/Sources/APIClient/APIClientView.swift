@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 import DevAppCore
+import CCommonCryptoAPI
 
 public struct APIClientView: View {
     @Environment(\.modelContext) private var modelContext
@@ -35,45 +36,36 @@ public struct APIClientView: View {
 
     public var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // Header
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("HTTP Client")
-                        .font(.title2)
-                        .fontWeight(.bold)
-                    Text("Send HTTP requests and inspect responses")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
+            // Toolbar
+            HStack(spacing: 8) {
                 Spacer()
 
                 Button {
                     showHistory.toggle()
                 } label: {
-                    Label("History", systemImage: "clock.arrow.circlepath")
+                    Image(systemName: showHistory ? "clock.arrow.circlepath" : "clock.arrow.circlepath")
                         .font(.caption)
                 }
                 .buttonStyle(.bordered)
+                .help("History")
 
                 Button {
                     showImportCurl.toggle()
                 } label: {
-                    Label("Import cURL", systemImage: "square.and.arrow.down")
+                    Image(systemName: "square.and.arrow.down")
                         .font(.caption)
                 }
                 .buttonStyle(.bordered)
+                .help("Import cURL")
                 .popover(isPresented: $showImportCurl) {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Paste cURL Command").font(.headline)
                         Text("Paste a cURL command to auto-fill the request fields")
                             .font(.caption)
                             .foregroundStyle(.secondary)
-                        TextEditor(text: $curlImportText)
-                            .font(.system(.caption, design: .monospaced))
-                            .scrollContentBackground(.hidden)
-                            .padding(8)
-                            .background(.fill.tertiary)
+                        CodeEditorView(text: $curlImportText, fontSize: 11)
                             .clipShape(RoundedRectangle(cornerRadius: 8))
+                            .overlay(RoundedRectangle(cornerRadius: 8).stroke(.separator, lineWidth: 0.5))
                         HStack {
                             Spacer()
                             Button("Cancel") { showImportCurl = false; curlImportText = "" }
@@ -87,9 +79,9 @@ public struct APIClientView: View {
                     .frame(width: 500, height: 300)
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.top, 16)
-            .padding(.bottom, 8)
+            .padding(.horizontal, 12)
+            .padding(.top, 8)
+            .padding(.bottom, 4)
 
             // Main content with optional history sidebar
             HStack(spacing: 0) {
@@ -187,6 +179,22 @@ public struct APIClientView: View {
                 }
 
                 lastCurlCommand = CurlHelper.export(request)
+
+                // Debug: verify what we're actually sending matches what script computed
+                if !preScript.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    let actualBody = request.httpBody.flatMap { String(data: $0, encoding: .utf8) } ?? "(nil)"
+                    let actualURL = request.url?.absoluteString ?? "(nil)"
+                    let actualHeaders = request.allHTTPHeaderFields ?? [:]
+                    consoleLogs.append(ScriptConsoleOutput(message: "\n[DEBUG] Actual request URL: \(actualURL)"))
+                    consoleLogs.append(ScriptConsoleOutput(message: "[DEBUG] Actual body length: \(request.httpBody?.count ?? 0) bytes"))
+                    consoleLogs.append(ScriptConsoleOutput(message: "[DEBUG] Actual body SHA256: \(sha256Hex(request.httpBody ?? Data()))"))
+                    consoleLogs.append(ScriptConsoleOutput(message: "[DEBUG] Content-Type: \(actualHeaders["Content-Type"] ?? "(not set)")"))
+                    consoleLogs.append(ScriptConsoleOutput(message: "[DEBUG] x-acgw-sign: \(actualHeaders["x-acgw-sign"]?.prefix(40) ?? "(not set)")..."))
+                    consoleLogs.append(ScriptConsoleOutput(message: "[DEBUG] x-acgw-timestamp: \(actualHeaders["x-acgw-timestamp"] ?? "(not set)")"))
+                    consoleLogs.append(ScriptConsoleOutput(message: "[DEBUG] x-acgw-nonce: \(actualHeaders["x-acgw-nonce"] ?? "(not set)")"))
+                    consoleLogs.append(ScriptConsoleOutput(message: "[DEBUG] Header count: \(actualHeaders.count)"))
+                }
+
                 let httpResponse = try await HTTPClientService.send(request)
                 response = httpResponse
 
@@ -213,6 +221,18 @@ public struct APIClientView: View {
             }
             isSending = false
         }
+    }
+
+    private func sha256Hex(_ data: Data) -> String {
+        let hash = data.withUnsafeBytes { ptr -> [UInt8] in
+            var hasher = CC_SHA256_CTX()
+            CC_SHA256_Init(&hasher)
+            CC_SHA256_Update(&hasher, ptr.baseAddress, CC_LONG(data.count))
+            var digest = [UInt8](repeating: 0, count: 32)
+            CC_SHA256_Final(&digest, &hasher)
+            return digest
+        }
+        return hash.map { String(format: "%02x", $0) }.joined()
     }
 
     private func saveToHistory(_ httpResponse: HTTPResponse) {

@@ -380,10 +380,26 @@ public enum PostmanCompat {
         let pmHeaders = JSValue(newObjectIn: ctx)!
         pmHeaders.setObject(headerUpsert, forKeyedSubscript: "upsert" as NSString)
 
-        // pm.request.url.query (basic stub)
+        // pm.request.url.query — parse real query params from URL
+        let queryItems: [(String, String)] = {
+            guard let comps = URLComponents(string: context.requestURL),
+                  let items = comps.queryItems else { return [] }
+            return items.compactMap { item in
+                guard let value = item.value, !item.name.isEmpty else { return nil }
+                return (item.name, value)
+            }
+        }()
+
         let queryObj = JSValue(newObjectIn: ctx)!
-        let queryCount: @convention(block) () -> Int = { 0 }
-        let queryEach: @convention(block) (JSValue) -> Void = { _ in }
+        let queryCount: @convention(block) () -> Int = { queryItems.count }
+        let queryEach: @convention(block) (JSValue) -> Void = { callback in
+            for (key, value) in queryItems {
+                let param = JSValue(newObjectIn: ctx)!
+                param.setObject(key, forKeyedSubscript: "key" as NSString)
+                param.setObject(value, forKeyedSubscript: "value" as NSString)
+                callback.call(withArguments: [param as Any])
+            }
+        }
         queryObj.setObject(queryCount, forKeyedSubscript: "count" as NSString)
         queryObj.setObject(queryEach, forKeyedSubscript: "each" as NSString)
 
