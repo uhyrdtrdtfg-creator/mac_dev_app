@@ -55,6 +55,7 @@ struct ContentView: View {
             LineSorterView.descriptor,
             TextAnalyzerView.descriptor,
             LoremIpsumGeneratorView.descriptor,
+            JSONYamlView.descriptor,
         ])
     }
 
@@ -80,6 +81,7 @@ struct ContentView: View {
         case "line-sort": LineSorterView()
         case "text-analyzer": TextAnalyzerView()
         case "lorem-ipsum": LoremIpsumGeneratorView()
+        case "json-yaml": JSONYamlView()
         default:
             ContentUnavailableView(
                 "Tool Not Found",
