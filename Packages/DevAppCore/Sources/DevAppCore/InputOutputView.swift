@@ -47,11 +47,15 @@ public struct InputOutputView<ConfigContent: View>: View {
             HStack(spacing: 16) {
                 // Input panel
                 VStack(alignment: .leading, spacing: 6) {
-                    Text(inputLabel)
-                        .font(.caption)
-                        .fontWeight(.medium)
-                        .foregroundStyle(.secondary)
-                        .textCase(.uppercase)
+                    HStack {
+                        Text(inputLabel)
+                            .font(.caption)
+                            .fontWeight(.medium)
+                            .foregroundStyle(.secondary)
+                            .textCase(.uppercase)
+                        Spacer()
+                        CopyButton(text: input)
+                    }
                     TextEditor(text: $input)
                         .font(.system(.body, design: .monospaced))
                         .scrollContentBackground(.hidden)
@@ -81,7 +85,7 @@ public struct InputOutputView<ConfigContent: View>: View {
                         Spacer()
                         CopyButton(text: output)
                     }
-                    TextEditor(text: .constant(output))
+                    TextEditor(text: $output)
                         .font(.system(.body, design: .monospaced))
                         .scrollContentBackground(.hidden)
                         .padding(10)
