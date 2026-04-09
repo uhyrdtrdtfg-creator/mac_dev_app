@@ -15,6 +15,9 @@ packages:
     path: Packages/ConversionTools
   APIClient:
     path: Packages/APIClient
+  Sparkle:
+    url: https://github.com/sparkle-project/Sparkle
+    from: "2.6.0"
 
 targets:
   MacDevApp:
@@ -27,6 +30,7 @@ targets:
       - package: CryptoTools
       - package: ConversionTools
       - package: APIClient
+      - package: Sparkle
     settings:
       PRODUCT_BUNDLE_IDENTIFIER: com.macdevapp.MacDevApp
       PRODUCT_NAME: DevToolkit
