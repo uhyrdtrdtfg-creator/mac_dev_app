@@ -58,6 +58,7 @@ struct ContentView: View {
             JSONYamlView.descriptor,
             MarkdownPreviewView.descriptor,
             TextDiffView.descriptor,
+            OCRView.descriptor,
         ])
     }
 
@@ -86,6 +87,7 @@ struct ContentView: View {
         case "json-yaml": JSONYamlView()
         case "markdown-preview": MarkdownPreviewView()
         case "text-diff": TextDiffView()
+        case "ocr": OCRView()
         default:
             ContentUnavailableView(
                 "Tool Not Found",
