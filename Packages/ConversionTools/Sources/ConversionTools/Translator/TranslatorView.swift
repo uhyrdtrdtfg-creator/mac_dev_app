@@ -28,7 +28,7 @@ public struct TranslatorView: View {
             }
 
             // Language selectors
-            HStack(spacing: 12) {
+            HStack(alignment: .bottom, spacing: 12) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("FROM").font(.caption2).fontWeight(.medium).foregroundStyle(.secondary)
                     Picker("Source", selection: $sourceLanguageCode) {
