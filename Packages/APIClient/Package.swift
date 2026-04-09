@@ -12,10 +12,10 @@ let package = Package(
     ],
     targets: [
         .target(
-            name: "CCommonCrypto",
+            name: "CCommonCryptoAPI",
             cSettings: [.headerSearchPath("include")]
         ),
-        .target(name: "APIClient", dependencies: ["DevAppCore", "CCommonCrypto"]),
+        .target(name: "APIClient", dependencies: ["DevAppCore", "CCommonCryptoAPI"]),
         .testTarget(name: "APIClientTests", dependencies: ["APIClient"])
     ]
 )

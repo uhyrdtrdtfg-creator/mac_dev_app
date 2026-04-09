@@ -1,4 +1,4 @@
-module CCommonCrypto {
+module CCommonCryptoAPI {
     header "shim.h"
     link "System"
     export *

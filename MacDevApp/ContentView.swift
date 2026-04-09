@@ -95,7 +95,7 @@ struct WelcomeView: View {
         VStack(spacing: 24) {
             Spacer()
 
-            Image(systemName: "chevronleft.slash.chevronright")
+            Image(systemName: "chevron.left.slash.chevron.right")
                 .font(.system(size: 56, weight: .thin))
                 .foregroundStyle(.blue.gradient)
 

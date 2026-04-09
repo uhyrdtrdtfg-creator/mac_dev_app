@@ -1,7 +1,7 @@
 import Foundation
 import JavaScriptCore
 import CryptoKit
-import CCommonCrypto
+import CCommonCryptoAPI
 
 /// Thread-safe environment variable store for pm.environment
 public final class EnvironmentStore: @unchecked Sendable {

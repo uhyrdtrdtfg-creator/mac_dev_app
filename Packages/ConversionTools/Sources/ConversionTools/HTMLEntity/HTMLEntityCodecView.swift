@@ -11,5 +11,5 @@ public struct HTMLEntityCodecView: View {
 }
 
 extension HTMLEntityCodecView {
-    public static let descriptor = ToolDescriptor(id: "html-entity", name: "HTML Entity Encode/Decode", icon: "chevronleft.slash.chevronright", category: .conversion, searchKeywords: ["html", "entity", "encode", "decode", "amp", "lt", "gt", "实体", "编码"])
+    public static let descriptor = ToolDescriptor(id: "html-entity", name: "HTML Entity Encode/Decode", icon: "chevron.left.slash.chevron.right", category: .conversion, searchKeywords: ["html", "entity", "encode", "decode", "amp", "lt", "gt", "实体", "编码"])
 }
