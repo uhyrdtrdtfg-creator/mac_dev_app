@@ -46,6 +46,96 @@ public struct ScriptContext: Sendable {
 }
 
 public enum ScriptEngine {
+    /// Shared environment store for pm.environment across script executions
+    nonisolated(unsafe) private static var sharedEnvStore = EnvironmentStore()
+
+    public static func setEnvironment(_ env: [String: String]) {
+        sharedEnvStore = EnvironmentStore(env)
+    }
+
+    public static func getEnvironmentStore() -> EnvironmentStore {
+        return sharedEnvStore
+    }
+
+    /// Run a pre-script with Postman compatibility (pm, CryptoJS, polyfills)
+    public static func runPreScriptCompat(
+        _ script: String,
+        context: ScriptContext
+    ) -> (context: ScriptContext, logs: [ScriptConsoleOutput]) {
+        guard !script.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            return (context, [])
+        }
+
+        let jsContext = JSContext()!
+        var logs: [ScriptConsoleOutput] = []
+        var updatedContext = context
+
+        // Set up console.log / console.error
+        let consoleLog: @convention(block) (String) -> Void = { message in
+            logs.append(ScriptConsoleOutput(message: message))
+        }
+        let consoleError: @convention(block) (String) -> Void = { message in
+            logs.append(ScriptConsoleOutput(message: message, isError: true))
+        }
+
+        let console = JSValue(newObjectIn: jsContext)!
+        console.setObject(consoleLog, forKeyedSubscript: "log" as NSString)
+        console.setObject(consoleError, forKeyedSubscript: "error" as NSString)
+        jsContext.setObject(console, forKeyedSubscript: "console" as NSString)
+
+        // Exception handler
+        jsContext.exceptionHandler = { _, exception in
+            if let msg = exception?.toString() {
+                logs.append(ScriptConsoleOutput(message: "Error: \(msg)", isError: true))
+            }
+        }
+
+        // Inject Postman compat: pm object, CryptoJS, atob/btoa, TextEncoder, crypto
+        PostmanCompat.setup(jsContext, context: context, envStore: sharedEnvStore)
+
+        // Also set up the legacy request/response objects for backward compat
+        let req = JSValue(newObjectIn: jsContext)!
+        req.setObject(context.requestMethod, forKeyedSubscript: "method" as NSString)
+        req.setObject(context.requestURL, forKeyedSubscript: "url" as NSString)
+        req.setObject(context.requestHeaders, forKeyedSubscript: "headers" as NSString)
+        req.setObject(context.requestBody as Any, forKeyedSubscript: "body" as NSString)
+        jsContext.setObject(req, forKeyedSubscript: "request" as NSString)
+
+        // Execute
+        jsContext.evaluateScript(script)
+
+        // Read back from pm.request if pm was used
+        let pmState = PostmanCompat.readBackState(jsContext)
+        if let pmBody = pmState.body, pmBody != "undefined" {
+            updatedContext.requestBody = pmBody
+        }
+        if !pmState.headers.isEmpty {
+            updatedContext.requestHeaders.merge(pmState.headers) { _, new in new }
+        }
+
+        // Also read back from legacy request object (only apply if script actually modified it)
+        if let reqObj = jsContext.objectForKeyedSubscript("request") {
+            if let method = reqObj.objectForKeyedSubscript("method")?.toString(),
+               method != "undefined", method != context.requestMethod {
+                updatedContext.requestMethod = method
+            }
+            if let url = reqObj.objectForKeyedSubscript("url")?.toString(),
+               url != "undefined", url != context.requestURL {
+                updatedContext.requestURL = url
+            }
+            if let headers = reqObj.objectForKeyedSubscript("headers")?.toDictionary() as? [String: String],
+               headers != context.requestHeaders {
+                updatedContext.requestHeaders.merge(headers) { _, new in new }
+            }
+            if let body = reqObj.objectForKeyedSubscript("body")?.toString(),
+               body != "undefined", body != (context.requestBody ?? "") {
+                updatedContext.requestBody = body
+            }
+        }
+
+        return (updatedContext, logs)
+    }
+
     public static func runPreScript(
         _ script: String,
         context: ScriptContext

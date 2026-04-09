@@ -11,7 +11,11 @@ let package = Package(
         .package(path: "../DevAppCore")
     ],
     targets: [
-        .target(name: "APIClient", dependencies: ["DevAppCore"]),
+        .target(
+            name: "CCommonCrypto",
+            cSettings: [.headerSearchPath("include")]
+        ),
+        .target(name: "APIClient", dependencies: ["DevAppCore", "CCommonCrypto"]),
         .testTarget(name: "APIClientTests", dependencies: ["APIClient"])
     ]
 )

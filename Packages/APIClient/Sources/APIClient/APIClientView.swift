@@ -168,7 +168,7 @@ public struct APIClientView: View {
                     )
                     if case .json(let json) = currentBody { scriptCtx.requestBody = json }
 
-                    let preResult = ScriptEngine.runPreScript(preScript, context: scriptCtx)
+                    let preResult = ScriptEngine.runPreScriptCompat(preScript, context: scriptCtx)
                     consoleLogs.append(contentsOf: preResult.logs)
 
                     // Rebuild request if script modified it
