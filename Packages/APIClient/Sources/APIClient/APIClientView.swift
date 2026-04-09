@@ -215,25 +215,9 @@ public struct APIClientView: View {
 
         Task {
             do {
-                // Resolve {{variable}} templates in headers and URL from pm.environment
-                let envStore = ScriptEngine.getEnvironmentStore()
-                let resolvedHeaders = headers.map { kv in
-                    KeyValuePair(key: resolveTemplates(kv.key, env: envStore),
-                                 value: resolveTemplates(kv.value, env: envStore),
-                                 isEnabled: kv.isEnabled)
-                }
-                let resolvedURL = resolveTemplates(url, env: envStore)
-                let resolvedBody: RequestBody? = {
-                    switch currentBody {
-                    case .json(let json): .json(resolveTemplates(json, env: envStore))
-                    case .raw(let raw): .raw(resolveTemplates(raw, env: envStore))
-                    default: currentBody
-                    }
-                }()
-
                 var request = try HTTPClientService.buildURLRequest(
-                    method: method, url: resolvedURL, headers: resolvedHeaders,
-                    queryParams: queryParams, body: resolvedBody, auth: currentAuth
+                    method: method, url: url, headers: headers,
+                    queryParams: queryParams, body: currentBody, auth: currentAuth
                 )
 
                 // Run pre-request script
@@ -248,19 +232,38 @@ public struct APIClientView: View {
                     let preResult = ScriptEngine.runPreScriptCompat(preScript, context: scriptCtx)
                     consoleLogs.append(contentsOf: preResult.logs)
 
-                    // Always rebuild request with script-modified context
-                    // (script may have changed headers, body, URL, or method via pm.request.*)
                     let updatedCtx = preResult.context
                     let updatedMethod = HTTPMethod(rawValue: updatedCtx.requestMethod) ?? method
                     let updatedHeaders = updatedCtx.requestHeaders.map { KeyValuePair(key: $0.key, value: $0.value) }
                     let updatedBody: RequestBody? = updatedCtx.requestBody.map { .json($0) } ?? currentBody
-                    // When pre-script runs, use ONLY script's values — don't mix in
-                    // UI queryParams (empty params add ?= to URL) or UI auth
                     request = try HTTPClientService.buildURLRequest(
                         method: updatedMethod, url: updatedCtx.requestURL,
                         headers: updatedHeaders, queryParams: [],
                         body: updatedBody, auth: nil
                     )
+                }
+
+                // Resolve {{variable}} templates AFTER pre-script (env vars are now set)
+                let envStore = ScriptEngine.getEnvironmentStore()
+                if let finalHeaders = request.allHTTPHeaderFields {
+                    for (key, value) in finalHeaders {
+                        let resolved = resolveTemplates(value, env: envStore)
+                        if resolved != value {
+                            request.setValue(resolved, forHTTPHeaderField: key)
+                        }
+                    }
+                }
+                if let finalURL = request.url?.absoluteString {
+                    let resolvedURL = resolveTemplates(finalURL, env: envStore)
+                    if resolvedURL != finalURL, let newURL = URL(string: resolvedURL) {
+                        request.url = newURL
+                    }
+                }
+                if let bodyData = request.httpBody, let bodyStr = String(data: bodyData, encoding: .utf8) {
+                    let resolvedBody = resolveTemplates(bodyStr, env: envStore)
+                    if resolvedBody != bodyStr {
+                        request.httpBody = Data(resolvedBody.utf8)
+                    }
                 }
 
                 lastCurlCommand = CurlHelper.export(request)
