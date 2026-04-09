@@ -177,10 +177,12 @@ public struct APIClientView: View {
                     let updatedMethod = HTTPMethod(rawValue: updatedCtx.requestMethod) ?? method
                     let updatedHeaders = updatedCtx.requestHeaders.map { KeyValuePair(key: $0.key, value: $0.value) }
                     let updatedBody: RequestBody? = updatedCtx.requestBody.map { .json($0) } ?? currentBody
+                    // When pre-script runs, use ONLY script's values — don't mix in
+                    // UI queryParams (empty params add ?= to URL) or UI auth
                     request = try HTTPClientService.buildURLRequest(
                         method: updatedMethod, url: updatedCtx.requestURL,
-                        headers: updatedHeaders, queryParams: queryParams,
-                        body: updatedBody, auth: currentAuth
+                        headers: updatedHeaders, queryParams: [],
+                        body: updatedBody, auth: nil
                     )
                 }
 

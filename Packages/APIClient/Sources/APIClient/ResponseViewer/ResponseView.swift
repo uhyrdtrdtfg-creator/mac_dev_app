@@ -202,13 +202,7 @@ struct ResponseView: View {
     }
 
     private func rawTextView(_ text: String) -> some View {
-        ScrollView {
-            Text(text)
-                .font(.system(.body, design: .monospaced))
-                .textSelection(.enabled)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(12)
-        }
+        CodeEditorView(text: .constant(text), isEditable: false)
     }
 
     // MARK: - Rewrite View
@@ -318,12 +312,9 @@ struct ResponseView: View {
                 .font(.caption)
                 .buttonStyle(.borderless)
             }
-            TextEditor(text: $rewriteBody)
-                .font(.system(.body, design: .monospaced))
-                .scrollContentBackground(.hidden)
-                .padding(8)
-                .background(.fill.tertiary)
+            CodeEditorView(text: $rewriteBody)
                 .clipShape(RoundedRectangle(cornerRadius: 8))
+                .overlay(RoundedRectangle(cornerRadius: 8).stroke(.separator, lineWidth: 0.5))
                 .frame(minHeight: 120)
         }
 
@@ -379,12 +370,9 @@ console.log("Rewrite applied!");
                 .font(.caption)
                 .buttonStyle(.borderless)
             }
-            TextEditor(text: $rewriteScript)
-                .font(.system(.body, design: .monospaced))
-                .scrollContentBackground(.hidden)
-                .padding(8)
-                .background(.fill.tertiary)
+            CodeEditorView(text: $rewriteScript)
                 .clipShape(RoundedRectangle(cornerRadius: 8))
+                .overlay(RoundedRectangle(cornerRadius: 8).stroke(.separator, lineWidth: 0.5))
                 .frame(minHeight: 100)
         }
 

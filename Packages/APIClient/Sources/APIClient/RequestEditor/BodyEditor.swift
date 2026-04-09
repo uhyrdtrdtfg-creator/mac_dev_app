@@ -29,22 +29,16 @@ struct BodyEditor: View {
             case .none:
                 ContentUnavailableView("No Body", systemImage: "doc")
             case .json:
-                TextEditor(text: $jsonBody)
-                    .font(.system(.body, design: .monospaced))
-                    .scrollContentBackground(.hidden)
-                    .padding(8)
-                    .background(.fill.tertiary)
+                CodeEditorView(text: $jsonBody)
                     .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(.separator, lineWidth: 0.5))
                     .frame(minHeight: 100)
             case .formData:
                 KeyValueEditor(pairs: $formDataPairs)
             case .raw:
-                TextEditor(text: $rawBody)
-                    .font(.system(.body, design: .monospaced))
-                    .scrollContentBackground(.hidden)
-                    .padding(8)
-                    .background(.fill.tertiary)
+                CodeEditorView(text: $rawBody)
                     .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(.separator, lineWidth: 0.5))
                     .frame(minHeight: 100)
             }
         }

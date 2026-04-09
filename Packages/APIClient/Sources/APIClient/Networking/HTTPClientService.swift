@@ -27,7 +27,7 @@ public enum HTTPClientService {
     public static func buildURLRequest(method: HTTPMethod, url: String, headers: [KeyValuePair], queryParams: [KeyValuePair], body: RequestBody?, auth: AuthType?) throws -> URLRequest {
         guard var components = URLComponents(string: url), !url.isEmpty else { throw HTTPClientError.invalidURL }
 
-        let enabledParams = queryParams.filter(\.isEnabled)
+        let enabledParams = queryParams.filter { $0.isEnabled && !$0.key.isEmpty }
         if !enabledParams.isEmpty {
             var items = components.queryItems ?? []
             items.append(contentsOf: enabledParams.map { URLQueryItem(name: $0.key, value: $0.value) })

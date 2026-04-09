@@ -14,7 +14,7 @@ struct ScriptEditorView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 8) {
             Picker("Script", selection: $selectedScript) {
                 ForEach(ScriptTab.allCases) { tab in
                     Text(tab.rawValue).tag(tab)
@@ -35,14 +35,11 @@ struct ScriptEditorView: View {
             .font(.caption)
             .foregroundStyle(.secondary)
 
-            // Editor
-            TextEditor(text: selectedScript == .preRequest ? $preScript : $postScript)
-                .font(.system(.body, design: .monospaced))
-                .scrollContentBackground(.hidden)
-                .padding(8)
-                .background(.fill.tertiary)
+            // Code editor
+            CodeEditorView(text: selectedScript == .preRequest ? $preScript : $postScript)
                 .clipShape(RoundedRectangle(cornerRadius: 8))
-                .frame(minHeight: 80)
+                .overlay(RoundedRectangle(cornerRadius: 8).stroke(.separator, lineWidth: 0.5))
+                .frame(minHeight: 120)
 
             // Console output
             if !consoleLogs.isEmpty {
