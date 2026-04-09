@@ -5,6 +5,7 @@ enum RequestTab: String, CaseIterable, Identifiable {
     case headers = "Headers"
     case body = "Body"
     case auth = "Auth"
+    case scripts = "Scripts"
 
     var id: String { rawValue }
 }
@@ -25,6 +26,9 @@ struct RequestEditorView: View {
     @Binding var apiKeyName: String
     @Binding var apiKeyValue: String
     @Binding var apiKeyLocation: APIKeyLocation
+    @Binding var preScript: String
+    @Binding var postScript: String
+    let consoleLogs: [ScriptConsoleOutput]
     let isSending: Bool
     let onSend: () -> Void
 
@@ -58,6 +62,8 @@ struct RequestEditorView: View {
                         BodyEditor(bodyType: $bodyType, jsonBody: $jsonBody, formDataPairs: $formDataPairs, rawBody: $rawBody)
                     case .auth:
                         AuthEditor(authMethod: $authMethod, bearerToken: $bearerToken, basicUsername: $basicUsername, basicPassword: $basicPassword, apiKeyName: $apiKeyName, apiKeyValue: $apiKeyValue, apiKeyLocation: $apiKeyLocation)
+                    case .scripts:
+                        ScriptEditorView(preScript: $preScript, postScript: $postScript, consoleLogs: consoleLogs)
                     }
                 }
                 .padding(12)
