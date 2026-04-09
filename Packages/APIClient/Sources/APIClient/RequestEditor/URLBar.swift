@@ -18,8 +18,8 @@ struct URLBar: View {
             .fixedSize()
             .font(.system(.body, design: .monospaced).weight(.bold))
             .foregroundStyle(method.color)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 6)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
             .background(method.color.opacity(0.08))
             .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
 
@@ -27,8 +27,8 @@ struct URLBar: View {
             TextField("https://api.example.com/endpoint", text: $url)
                 .font(.system(.body, design: .monospaced))
                 .textFieldStyle(.plain)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 8)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
                 .onSubmit { onSend() }
 
             // Send button
@@ -36,18 +36,18 @@ struct URLBar: View {
                 if isSending {
                     ProgressView()
                         .controlSize(.small)
-                        .frame(width: 50)
+                        .frame(width: 56)
                 } else {
                     Text("Send")
                         .fontWeight(.semibold)
-                        .frame(width: 50)
+                        .frame(width: 56)
                 }
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
             .disabled(isSending || url.isEmpty)
         }
-        .padding(4)
+        .padding(6)
         .background(.fill.tertiary)
         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).stroke(.separator, lineWidth: 0.5))

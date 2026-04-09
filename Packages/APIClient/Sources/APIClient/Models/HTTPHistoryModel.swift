@@ -15,8 +15,21 @@ public final class HTTPHistoryModel {
     public var responseSize: Int
     public var executedAt: Date
 
+    // Scripts
+    public var preScript: String?
+    public var postScript: String?
+    public var rewriteScript: String?
+
+    // Body type info for restoration
+    public var bodyType: String?  // "none", "json", "formData", "raw"
+
     public init(requestMethod: String, requestURL: String, responseStatus: Int, duration: TimeInterval, responseSize: Int) {
-        self.id = UUID(); self.requestMethod = requestMethod; self.requestURL = requestURL
-        self.responseStatus = responseStatus; self.duration = duration; self.responseSize = responseSize; self.executedAt = Date()
+        self.id = UUID()
+        self.requestMethod = requestMethod
+        self.requestURL = requestURL
+        self.responseStatus = responseStatus
+        self.duration = duration
+        self.responseSize = responseSize
+        self.executedAt = Date()
     }
 }

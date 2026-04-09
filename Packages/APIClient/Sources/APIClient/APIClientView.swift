@@ -31,6 +31,8 @@ public struct APIClientView: View {
     @State private var showImportCurl = false
     @State private var curlImportText = ""
     @State private var showHistory = false
+    @State private var rewriteScript = ""
+    @State private var rewriteScriptLogs: [ScriptConsoleOutput] = []
 
     public init() {}
 
@@ -110,7 +112,13 @@ public struct APIClientView: View {
                     )
                     .frame(minHeight: 220)
 
-                    ResponseView(response: response, error: errorMessage, curlCommand: lastCurlCommand) { rewritten in
+                    ResponseView(
+                        response: response,
+                        error: errorMessage,
+                        curlCommand: lastCurlCommand,
+                        rewriteScript: $rewriteScript,
+                        rewriteScriptLogs: rewriteScriptLogs
+                    ) { rewritten in
                         response = rewritten
                     }
                     .frame(minHeight: 180)
@@ -213,6 +221,36 @@ public struct APIClientView: View {
                     consoleLogs.append(contentsOf: postLogs)
                 }
 
+                // Auto-run rewrite script if set
+                if !rewriteScript.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                   let currentResponse = response {
+                    let bodyString = String(data: currentResponse.body, encoding: .utf8) ?? ""
+                    let rwCtx = ScriptContext(
+                        requestMethod: method.rawValue,
+                        requestURL: url,
+                        requestHeaders: [:],
+                        responseStatus: currentResponse.statusCode,
+                        responseBody: bodyString,
+                        responseHeaders: currentResponse.headers,
+                        responseDuration: currentResponse.duration
+                    )
+                    let rwResult = ScriptEngine.runRewriteScript(rewriteScript, context: rwCtx)
+                    rewriteScriptLogs = rwResult.logs
+                    consoleLogs.append(contentsOf: rwResult.logs)
+
+                    let newStatus = rwResult.context.responseStatus ?? currentResponse.statusCode
+                    let newBody = Data((rwResult.context.responseBody ?? bodyString).utf8)
+                    let newHeaders = rwResult.context.responseHeaders ?? currentResponse.headers
+                    response = HTTPResponse(
+                        statusCode: newStatus,
+                        headers: newHeaders,
+                        body: newBody,
+                        duration: currentResponse.duration,
+                        bodySize: newBody.count,
+                        cookies: currentResponse.cookies
+                    )
+                }
+
                 // Save to history
                 saveToHistory(httpResponse)
 
@@ -251,6 +289,11 @@ public struct APIClientView: View {
         if case .json(let json) = RequestBody.json(jsonBody) {
             history.requestBodyJSON = json.data(using: .utf8)
         }
+        // Save scripts
+        history.preScript = preScript.isEmpty ? nil : preScript
+        history.postScript = postScript.isEmpty ? nil : postScript
+        history.rewriteScript = rewriteScript.isEmpty ? nil : rewriteScript
+        history.bodyType = bodyType.rawValue
         modelContext.insert(history)
     }
 
@@ -261,6 +304,17 @@ public struct APIClientView: View {
            let decoded = try? JSONDecoder().decode([KeyValuePair].self, from: data) {
             headers = decoded
         }
+        if let data = item.requestBodyJSON, let body = String(data: data, encoding: .utf8) {
+            jsonBody = body
+            bodyType = .json
+        }
+        if let bt = item.bodyType, let t = BodyType(rawValue: bt) {
+            bodyType = t
+        }
+        // Restore scripts
+        preScript = item.preScript ?? ""
+        postScript = item.postScript ?? ""
+        rewriteScript = item.rewriteScript ?? ""
         response = nil
         errorMessage = nil
     }

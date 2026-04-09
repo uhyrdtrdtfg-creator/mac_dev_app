@@ -29,6 +29,8 @@ struct ResponseView: View {
     let error: String?
     let curlCommand: String?
     let onRewrite: ((HTTPResponse) -> Void)?
+    @Binding var rewriteScript: String
+    let externalRewriteLogs: [ScriptConsoleOutput]
     @State private var selectedTab: ResponseTab = .body
     @State private var bodyMode: BodyDisplayMode = .pretty
     @State private var showCurl = false
@@ -36,14 +38,15 @@ struct ResponseView: View {
     @State private var rewriteStatusCode = ""
     @State private var rewriteHeaders: [KeyValuePair] = []
     @State private var isRewriteApplied = false
-    @State private var rewriteScript = ""
     @State private var rewriteScriptLogs: [ScriptConsoleOutput] = []
     @State private var rewriteMode: RewriteMode = .manual
 
-    init(response: HTTPResponse?, error: String?, curlCommand: String? = nil, onRewrite: ((HTTPResponse) -> Void)? = nil) {
+    init(response: HTTPResponse?, error: String?, curlCommand: String? = nil, rewriteScript: Binding<String> = .constant(""), rewriteScriptLogs: [ScriptConsoleOutput] = [], onRewrite: ((HTTPResponse) -> Void)? = nil) {
         self.response = response
         self.error = error
         self.curlCommand = curlCommand
+        self._rewriteScript = rewriteScript
+        self.externalRewriteLogs = rewriteScriptLogs
         self.onRewrite = onRewrite
     }
 
@@ -335,10 +338,18 @@ struct ResponseView: View {
 
     @ViewBuilder
     private func scriptRewriteContent(for response: HTTPResponse) -> some View {
-        // Hint
-        Text("Write JavaScript to transform the response. Access `response.body` (parsed JSON object), `response.status`, `response.headers`. Modify them directly — changes are applied when you click Run.")
-            .font(.caption)
-            .foregroundStyle(.secondary)
+        // Hint + auto-run indicator
+        HStack {
+            Text("Write JavaScript to transform the response. Script auto-runs after each request if non-empty.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Spacer()
+            if !rewriteScript.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                Label("Auto-run ON", systemImage: "bolt.fill")
+                    .font(.caption2)
+                    .foregroundStyle(.green)
+            }
+        }
 
         // Script editor
         VStack(alignment: .leading, spacing: 6) {
@@ -375,7 +386,7 @@ console.log("Rewrite applied!");
         }
 
         // Console output
-        if !rewriteScriptLogs.isEmpty {
+        if !rewriteScriptLogs.isEmpty || !externalRewriteLogs.isEmpty {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Console")
                     .font(.caption)
@@ -384,7 +395,7 @@ console.log("Rewrite applied!");
 
                 ScrollView {
                     VStack(alignment: .leading, spacing: 2) {
-                        ForEach(rewriteScriptLogs) { log in
+                        ForEach(externalRewriteLogs + rewriteScriptLogs) { log in
                             Text(log.message)
                                 .font(.system(.caption, design: .monospaced))
                                 .foregroundStyle(log.isError ? .red : .primary)

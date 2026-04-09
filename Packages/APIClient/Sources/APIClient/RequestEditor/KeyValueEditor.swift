@@ -13,24 +13,24 @@ struct KeyValueEditor: View {
         VStack(spacing: 0) {
             // Header row
             HStack(spacing: 0) {
-                Color.clear.frame(width: 28)
+                Color.clear.frame(width: 36)
                 Text(keyPlaceholder)
                     .font(.caption)
                     .fontWeight(.medium)
                     .foregroundStyle(.secondary)
                     .textCase(.uppercase)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.leading, 10)
+                    .padding(.leading, 12)
                 Text(valuePlaceholder)
                     .font(.caption)
                     .fontWeight(.medium)
                     .foregroundStyle(.secondary)
                     .textCase(.uppercase)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.leading, 10)
-                Color.clear.frame(width: 28)
+                    .padding(.leading, 12)
+                Color.clear.frame(width: 36)
             }
-            .padding(.vertical, 6)
+            .padding(.vertical, 8)
             .background(.fill.quaternary)
 
             Divider()
@@ -41,22 +41,22 @@ struct KeyValueEditor: View {
                     Toggle("", isOn: $pair.isEnabled)
                         .labelsHidden()
                         .controlSize(.small)
-                        .frame(width: 28)
+                        .frame(width: 36)
 
                     TextField(keyPlaceholder, text: $pair.key)
                         .textFieldStyle(.plain)
                         .font(.system(.body, design: .monospaced))
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 10)
                         .frame(maxWidth: .infinity)
 
-                    Divider().frame(height: 20)
+                    Divider().frame(height: 24)
 
                     TextField(valuePlaceholder, text: $pair.value)
                         .textFieldStyle(.plain)
                         .font(.system(.body, design: .monospaced))
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 10)
                         .frame(maxWidth: .infinity)
 
                     Button {
@@ -66,9 +66,8 @@ struct KeyValueEditor: View {
                             .foregroundStyle(.quaternary)
                     }
                     .buttonStyle(.plain)
-                    .frame(width: 28)
+                    .frame(width: 36)
                 }
-                .padding(.vertical, 2)
 
                 Divider()
             }
@@ -82,7 +81,8 @@ struct KeyValueEditor: View {
                     .foregroundStyle(.secondary)
             }
             .buttonStyle(.plain)
-            .padding(8)
+            .padding(.vertical, 10)
+            .padding(.horizontal, 12)
         }
         .background(.fill.tertiary)
         .clipShape(RoundedRectangle(cornerRadius: 8))
