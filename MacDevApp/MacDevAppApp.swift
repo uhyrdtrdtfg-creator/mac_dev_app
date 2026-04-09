@@ -14,7 +14,8 @@ struct MacDevAppApp: App {
         .modelContainer(for: [
             HTTPRequestModel.self,
             HTTPCollectionModel.self,
-            HTTPHistoryModel.self
+            HTTPHistoryModel.self,
+            SavedRequestModel.self
         ])
         .windowStyle(.automatic)
         .defaultSize(width: 1100, height: 750)
