@@ -59,6 +59,7 @@ struct ContentView: View {
             MarkdownPreviewView.descriptor,
             TextDiffView.descriptor,
             OCRView.descriptor,
+            TranslatorView.descriptor,
         ])
     }
 
@@ -88,6 +89,7 @@ struct ContentView: View {
         case "markdown-preview": MarkdownPreviewView()
         case "text-diff": TextDiffView()
         case "ocr": OCRView()
+        case "translator": TranslatorView()
         default:
             ContentUnavailableView(
                 "Tool Not Found",
