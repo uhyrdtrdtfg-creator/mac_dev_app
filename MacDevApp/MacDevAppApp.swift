@@ -7,6 +7,16 @@ import APIClient
 
 @main
 struct MacDevAppApp: App {
+    init() {
+        // Disable smart quotes/dashes globally — critical for a developer tool
+        // Prevents " → " " and ' → ' ' and -- → —
+        UserDefaults.standard.set(false, forKey: "NSAutomaticQuoteSubstitutionEnabled")
+        UserDefaults.standard.set(false, forKey: "NSAutomaticDashSubstitutionEnabled")
+        UserDefaults.standard.set(false, forKey: "NSAutomaticTextReplacementEnabled")
+        UserDefaults.standard.set(false, forKey: "NSAutomaticSpellingCorrectionEnabled")
+        UserDefaults.standard.set(false, forKey: "NSAutomaticTextCompletionEnabled")
+    }
+
     var body: some Scene {
         WindowGroup {
             ContentView()
