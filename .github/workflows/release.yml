@@ -112,7 +112,7 @@ jobs:
           xcodebuild -exportArchive \
             -archivePath build/$APP_NAME.xcarchive \
             -exportPath build/export \
-            -exportOptionsPlist build/ExportOptions.plist
+            -exportOptionsPlist ExportOptions.plist
 
       - name: Notarize
         run: |
