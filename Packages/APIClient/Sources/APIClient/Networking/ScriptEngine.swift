@@ -276,23 +276,25 @@ public enum ScriptEngine {
         setupConsole(jsContext, logs: &logs)
         setupExceptionHandler(jsContext, logs: &logs)
 
+        // Load full Postman compat: CryptoJS, atob/btoa, TextEncoder, pm.environment
+        PostmanCompat.setup(jsContext, context: context, envStore: sharedEnvStore)
+
+        // Set up response object (mutable)
         let res = JSValue(newObjectIn: jsContext)!
         res.setObject(context.responseStatus as Any, forKeyedSubscript: "status" as NSString)
         res.setObject(context.responseHeaders as Any, forKeyedSubscript: "headers" as NSString)
 
-        if let bodyString = context.responseBody,
-           let bodyData = bodyString.data(using: .utf8),
-           let jsonObj = try? JSONSerialization.jsonObject(with: bodyData) {
-            res.setObject(jsonObj, forKeyedSubscript: "body" as NSString)
-        } else {
-            res.setObject(context.responseBody as Any, forKeyedSubscript: "body" as NSString)
-        }
+        // Body as string (for encrypted Base64 responses)
+        res.setObject(context.responseBody as Any, forKeyedSubscript: "body" as NSString)
 
         jsContext.setObject(res, forKeyedSubscript: "response" as NSString)
 
         jsContext.evaluateScript("""
         response.json = function() {
             return typeof response.body === 'string' ? JSON.parse(response.body) : response.body;
+        };
+        response.text = function() {
+            return typeof response.body === 'string' ? response.body : JSON.stringify(response.body);
         };
         """)
 
