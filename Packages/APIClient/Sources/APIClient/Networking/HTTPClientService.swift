@@ -14,7 +14,7 @@ public enum HTTPClientError: Error, LocalizedError {
     }
 }
 
-public struct HTTPResponse: Sendable {
+public struct HTTPResponse: Sendable, Equatable {
     public let statusCode: Int
     public let headers: [String: String]
     public let body: Data

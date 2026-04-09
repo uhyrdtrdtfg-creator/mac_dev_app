@@ -118,8 +118,10 @@ public struct APIClientView: View {
                     )
                     .frame(minHeight: 220)
 
-                    ResponseView(response: response, error: errorMessage, curlCommand: lastCurlCommand)
-                        .frame(minHeight: 180)
+                    ResponseView(response: response, error: errorMessage, curlCommand: lastCurlCommand) { rewritten in
+                        response = rewritten
+                    }
+                    .frame(minHeight: 180)
                 }
             }
         }
