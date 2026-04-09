@@ -215,9 +215,25 @@ public struct APIClientView: View {
 
         Task {
             do {
+                // Resolve {{variable}} templates in headers and URL from pm.environment
+                let envStore = ScriptEngine.getEnvironmentStore()
+                let resolvedHeaders = headers.map { kv in
+                    KeyValuePair(key: resolveTemplates(kv.key, env: envStore),
+                                 value: resolveTemplates(kv.value, env: envStore),
+                                 isEnabled: kv.isEnabled)
+                }
+                let resolvedURL = resolveTemplates(url, env: envStore)
+                let resolvedBody: RequestBody? = {
+                    switch currentBody {
+                    case .json(let json): .json(resolveTemplates(json, env: envStore))
+                    case .raw(let raw): .raw(resolveTemplates(raw, env: envStore))
+                    default: currentBody
+                    }
+                }()
+
                 var request = try HTTPClientService.buildURLRequest(
-                    method: method, url: url, headers: headers,
-                    queryParams: queryParams, body: currentBody, auth: currentAuth
+                    method: method, url: resolvedURL, headers: resolvedHeaders,
+                    queryParams: queryParams, body: resolvedBody, auth: currentAuth
                 )
 
                 // Run pre-request script
@@ -479,6 +495,20 @@ public struct APIClientView: View {
 
         response = nil
         errorMessage = nil
+    }
+
+    /// Replace {{variable}} templates with values from pm.environment
+    private func resolveTemplates(_ text: String, env: EnvironmentStore) -> String {
+        var result = text
+        // Match {{variableName}} patterns
+        let pattern = /\{\{([^}]+)\}\}/
+        for match in text.matches(of: pattern) {
+            let key = String(match.1).trimmingCharacters(in: .whitespaces)
+            if let value = env.get(key) {
+                result = result.replacingOccurrences(of: String(match.0), with: value)
+            }
+        }
+        return result
     }
 }
 

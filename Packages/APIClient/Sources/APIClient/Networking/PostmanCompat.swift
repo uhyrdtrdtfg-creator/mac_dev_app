@@ -24,6 +24,12 @@ public final class EnvironmentStore: @unchecked Sendable {
         store[key] = value
     }
 
+    public func remove(_ key: String) {
+        lock.lock()
+        defer { lock.unlock() }
+        store.removeValue(forKey: key)
+    }
+
     public func all() -> [String: String] {
         lock.lock()
         defer { lock.unlock() }
@@ -345,10 +351,18 @@ public enum PostmanCompat {
         let envSet: @convention(block) (String, String) -> Void = { key, value in
             envStore.set(key, value)
         }
+        let envUnset: @convention(block) (String) -> Void = { key in
+            envStore.remove(key)
+        }
+        let envHas: @convention(block) (String) -> Bool = { key in
+            envStore.get(key) != nil
+        }
 
         let pmEnv = JSValue(newObjectIn: ctx)!
         pmEnv.setObject(envGet, forKeyedSubscript: "get" as NSString)
         pmEnv.setObject(envSet, forKeyedSubscript: "set" as NSString)
+        pmEnv.setObject(envUnset, forKeyedSubscript: "unset" as NSString)
+        pmEnv.setObject(envHas, forKeyedSubscript: "has" as NSString)
 
         // pm.request.body
         let pmBody = JSValue(newObjectIn: ctx)!
