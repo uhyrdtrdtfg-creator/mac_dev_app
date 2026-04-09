@@ -13,7 +13,7 @@ def main():
 
     # GitHub repo info from environment
     import os
-    repo = os.environ.get("GITHUB_REPOSITORY", "xiaobo1107/mac_dev_app")
+    repo = os.environ.get("GITHUB_REPOSITORY", "uhyrdtrdtfg-creator/mac_dev_app")
 
     download_url = f"https://github.com/{repo}/releases/download/v{version}/DevToolkit.zip"
     pub_date = datetime.now(timezone.utc).strftime("%a, %d %b %Y %H:%M:%S %z")

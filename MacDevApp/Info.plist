@@ -26,7 +26,7 @@
         <string>zh-Hans</string>
     </array>
     <key>SUFeedURL</key>
-    <string>https://raw.githubusercontent.com/xiaobo1107/mac_dev_app/main/appcast.xml</string>
+    <string>https://raw.githubusercontent.com/uhyrdtrdtfg-creator/mac_dev_app/main/appcast.xml</string>
     <key>SUPublicEDKey</key>
     <string>3U4+rtrejAHkgSvH80gASatQP/+6hKSI6dPFPeC1yQ8=</string>
     <key>SUEnableAutomaticChecks</key>
