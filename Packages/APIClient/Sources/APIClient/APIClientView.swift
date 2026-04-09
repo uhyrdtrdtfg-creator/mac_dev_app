@@ -171,18 +171,17 @@ public struct APIClientView: View {
                     let preResult = ScriptEngine.runPreScriptCompat(preScript, context: scriptCtx)
                     consoleLogs.append(contentsOf: preResult.logs)
 
-                    // Rebuild request if script modified it
+                    // Always rebuild request with script-modified context
+                    // (script may have changed headers, body, URL, or method via pm.request.*)
                     let updatedCtx = preResult.context
-                    if updatedCtx.requestURL != url || updatedCtx.requestMethod != method.rawValue {
-                        let updatedMethod = HTTPMethod(rawValue: updatedCtx.requestMethod) ?? method
-                        let updatedHeaders = updatedCtx.requestHeaders.map { KeyValuePair(key: $0.key, value: $0.value) }
-                        let updatedBody: RequestBody? = updatedCtx.requestBody.map { .json($0) } ?? currentBody
-                        request = try HTTPClientService.buildURLRequest(
-                            method: updatedMethod, url: updatedCtx.requestURL,
-                            headers: updatedHeaders, queryParams: [],
-                            body: updatedBody, auth: currentAuth
-                        )
-                    }
+                    let updatedMethod = HTTPMethod(rawValue: updatedCtx.requestMethod) ?? method
+                    let updatedHeaders = updatedCtx.requestHeaders.map { KeyValuePair(key: $0.key, value: $0.value) }
+                    let updatedBody: RequestBody? = updatedCtx.requestBody.map { .json($0) } ?? currentBody
+                    request = try HTTPClientService.buildURLRequest(
+                        method: updatedMethod, url: updatedCtx.requestURL,
+                        headers: updatedHeaders, queryParams: queryParams,
+                        body: updatedBody, auth: currentAuth
+                    )
                 }
 
                 lastCurlCommand = CurlHelper.export(request)
