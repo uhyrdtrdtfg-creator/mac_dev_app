@@ -117,14 +117,18 @@ public enum MarkdownToHTML {
 
             // Paragraph
             var paraLines: [String] = []
+            let startI = i
             while i < lines.count {
                 let pl = lines[i]
                 let pt = pl.trimmingCharacters(in: .init(charactersIn: " "))
-                if pt.isEmpty || pt.hasPrefix("#") || pt.hasPrefix("```") || pt.hasPrefix("> ") || pt.hasPrefix("- ") || pt.hasPrefix("* ") || isHorizontalRule(pt) { break }
+                if pt.isEmpty || pt.hasPrefix("```") || pt.hasPrefix("> ") || pt.hasPrefix("- ") || pt.hasPrefix("* ") || isHorizontalRule(pt) { break }
+                if pt.hasPrefix("#") && pt != trimmed { break } // don't break on the current line itself
                 if let _ = pt.range(of: #"^\d+\.\s"#, options: .regularExpression) { break }
                 paraLines.append(pt)
                 i += 1
             }
+            // Safety: always advance at least one line to prevent infinite loop
+            if i == startI { i += 1 }
             if !paraLines.isEmpty {
                 html.append("<p>\(convertInline(paraLines.joined(separator: "\n")))</p>")
             }
