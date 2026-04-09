@@ -2,11 +2,31 @@ import SwiftUI
 import DevAppCore
 
 public struct HTMLEntityCodecView: View {
-    @State private var input = ""; @State private var output = ""
+    @State private var input = ""
+    @State private var output = ""
+    @State private var isUpdating = false
+
     public init() {}
+
     public var body: some View {
-        InputOutputView(title: "HTML Entity Encode / Decode", description: "Convert HTML special characters to entities and back", input: $input, output: $output, inputLabel: "Plain Text", outputLabel: "HTML Entities")
-            .onChange(of: input) { _, _ in output = HTMLEntityCodec.encode(input) }
+        InputOutputView(
+            title: "HTML Entity Encode / Decode",
+            description: "Type in either panel — left encodes, right decodes",
+            input: $input, output: $output,
+            inputLabel: "Plain Text", outputLabel: "HTML Entities"
+        )
+        .onChange(of: input) { _, newValue in
+            guard !isUpdating else { return }
+            isUpdating = true
+            output = HTMLEntityCodec.encode(newValue)
+            isUpdating = false
+        }
+        .onChange(of: output) { _, newValue in
+            guard !isUpdating else { return }
+            isUpdating = true
+            input = HTMLEntityCodec.decode(newValue)
+            isUpdating = false
+        }
     }
 }
 

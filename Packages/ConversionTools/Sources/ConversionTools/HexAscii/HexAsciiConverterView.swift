@@ -4,10 +4,29 @@ import DevAppCore
 public struct HexAsciiConverterView: View {
     @State private var input = ""
     @State private var output = ""
+    @State private var isUpdating = false
+
     public init() {}
+
     public var body: some View {
-        InputOutputView(title: "Hex / ASCII Converter", description: "Convert between hexadecimal and ASCII text", input: $input, output: $output, inputLabel: "ASCII Text", outputLabel: "Hex")
-            .onChange(of: input) { _, _ in output = HexAsciiConverter.asciiToHex(input) }
+        InputOutputView(
+            title: "Hex / ASCII Converter",
+            description: "Type in either panel — left converts to hex, right converts to ASCII",
+            input: $input, output: $output,
+            inputLabel: "ASCII Text", outputLabel: "Hex"
+        )
+        .onChange(of: input) { _, newValue in
+            guard !isUpdating else { return }
+            isUpdating = true
+            output = HexAsciiConverter.asciiToHex(newValue)
+            isUpdating = false
+        }
+        .onChange(of: output) { _, newValue in
+            guard !isUpdating else { return }
+            isUpdating = true
+            input = HexAsciiConverter.hexToAscii(newValue) ?? ""
+            isUpdating = false
+        }
     }
 }
 
