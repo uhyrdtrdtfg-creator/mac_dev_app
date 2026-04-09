@@ -17,13 +17,11 @@ public struct TextDiffView: View {
                     Text("Text Diff")
                         .font(.title2)
                         .fontWeight(.bold)
-                    Text("Paste text in both panels — differences highlight automatically")
+                    Text("Paste text in both panels — differences highlight below")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
-
                 Spacer()
-
                 if let stats {
                     HStack(spacing: 12) {
                         Label("\(stats.additions)", systemImage: "plus")
@@ -34,164 +32,116 @@ public struct TextDiffView: View {
                             .font(.caption).fontWeight(.medium).foregroundStyle(.secondary)
                     }
                 }
-
                 Button("Swap") {
                     let tmp = leftText; leftText = rightText; rightText = tmp
                 }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-
+                .buttonStyle(.bordered).controlSize(.small)
                 Button("Clear") {
                     leftText = ""; rightText = ""
                 }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
+                .buttonStyle(.bordered).controlSize(.small)
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 12)
 
             Divider()
 
-            // Side-by-side panels
+            // Two editable panels
             HStack(spacing: 0) {
-                // Left panel: Original
+                // Left: Original
                 VStack(alignment: .leading, spacing: 0) {
-                    Text("ORIGINAL")
-                        .font(.caption)
-                        .fontWeight(.medium)
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(.background.secondary)
-
-                    Divider()
-
-                    ZStack {
-                        // Diff highlight background layer
-                        ScrollView {
-                            VStack(alignment: .leading, spacing: 0) {
-                                let leftLines = buildLeftLines()
-                                ForEach(Array(leftLines.enumerated()), id: \.offset) { idx, entry in
-                                    HStack(spacing: 0) {
-                                        Text("\(idx + 1)")
-                                            .font(.system(.caption2, design: .monospaced))
-                                            .foregroundStyle(.tertiary)
-                                            .frame(width: 32, alignment: .trailing)
-                                            .padding(.trailing, 6)
-                                        Text(entry.text.isEmpty ? " " : entry.text)
-                                            .font(.system(.body, design: .monospaced))
-                                            .foregroundStyle(entry.type == .removed ? .red : .primary)
-                                            .frame(maxWidth: .infinity, alignment: .leading)
-                                    }
-                                    .padding(.vertical, 1)
-                                    .padding(.horizontal, 4)
-                                    .background(entry.type == .removed ? Color.red.opacity(0.1) : .clear)
-                                }
-                            }
-                            .padding(6)
-                        }
-
-                        // Editable text layer (transparent, on top)
-                        TextEditor(text: $leftText)
-                            .font(.system(.body, design: .monospaced))
-                            .scrollContentBackground(.hidden)
-                            .padding(.leading, 42) // offset for line numbers
-                            .padding(6)
-                            .opacity(0.01) // nearly invisible but captures input
+                    HStack {
+                        Text("ORIGINAL")
+                            .font(.caption).fontWeight(.medium).foregroundStyle(.secondary)
+                        Spacer()
+                        CopyButton(text: leftText)
                     }
+                    .padding(.horizontal, 12).padding(.vertical, 6)
+                    .background(.background.secondary)
+                    Divider()
+                    TextEditor(text: $leftText)
+                        .font(.system(.body, design: .monospaced))
+                        .scrollContentBackground(.hidden)
+                        .padding(6)
                 }
 
                 Divider()
 
-                // Right panel: Modified
+                // Right: Modified
                 VStack(alignment: .leading, spacing: 0) {
-                    Text("MODIFIED")
-                        .font(.caption)
-                        .fontWeight(.medium)
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(.background.secondary)
-
-                    Divider()
-
-                    ZStack {
-                        ScrollView {
-                            VStack(alignment: .leading, spacing: 0) {
-                                let rightLines = buildRightLines()
-                                ForEach(Array(rightLines.enumerated()), id: \.offset) { idx, entry in
-                                    HStack(spacing: 0) {
-                                        Text("\(idx + 1)")
-                                            .font(.system(.caption2, design: .monospaced))
-                                            .foregroundStyle(.tertiary)
-                                            .frame(width: 32, alignment: .trailing)
-                                            .padding(.trailing, 6)
-                                        Text(entry.text.isEmpty ? " " : entry.text)
-                                            .font(.system(.body, design: .monospaced))
-                                            .foregroundStyle(entry.type == .added ? .green : .primary)
-                                            .frame(maxWidth: .infinity, alignment: .leading)
-                                    }
-                                    .padding(.vertical, 1)
-                                    .padding(.horizontal, 4)
-                                    .background(entry.type == .added ? Color.green.opacity(0.1) : .clear)
-                                }
-                            }
-                            .padding(6)
-                        }
-
-                        TextEditor(text: $rightText)
-                            .font(.system(.body, design: .monospaced))
-                            .scrollContentBackground(.hidden)
-                            .padding(.leading, 42)
-                            .padding(6)
-                            .opacity(0.01)
+                    HStack {
+                        Text("MODIFIED")
+                            .font(.caption).fontWeight(.medium).foregroundStyle(.secondary)
+                        Spacer()
+                        CopyButton(text: rightText)
                     }
+                    .padding(.horizontal, 12).padding(.vertical, 6)
+                    .background(.background.secondary)
+                    Divider()
+                    TextEditor(text: $rightText)
+                        .font(.system(.body, design: .monospaced))
+                        .scrollContentBackground(.hidden)
+                        .padding(6)
                 }
+            }
+            .frame(maxHeight: .infinity)
+
+            // Diff result
+            if !diffLines.isEmpty {
+                Divider()
+
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 0) {
+                        ForEach(diffLines) { line in
+                            HStack(spacing: 0) {
+                                Text(line.leftLineNumber.map { String($0) } ?? "")
+                                    .font(.system(.caption2, design: .monospaced))
+                                    .foregroundStyle(.tertiary)
+                                    .frame(width: 32, alignment: .trailing)
+                                    .padding(.trailing, 4)
+
+                                Text(line.type == .added ? "+" : line.type == .removed ? "−" : " ")
+                                    .font(.system(.caption, design: .monospaced))
+                                    .fontWeight(.bold)
+                                    .foregroundStyle(colorFor(line.type))
+                                    .frame(width: 16)
+
+                                Text(line.rightLineNumber.map { String($0) } ?? "")
+                                    .font(.system(.caption2, design: .monospaced))
+                                    .foregroundStyle(.tertiary)
+                                    .frame(width: 32, alignment: .trailing)
+                                    .padding(.trailing, 8)
+
+                                Text(line.text.isEmpty ? " " : line.text)
+                                    .font(.system(.body, design: .monospaced))
+                                    .foregroundStyle(line.type == .equal ? .primary : colorFor(line.type))
+                                    .textSelection(.enabled)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                            }
+                            .padding(.vertical, 1)
+                            .padding(.horizontal, 8)
+                            .background(bgFor(line.type))
+                        }
+                    }
+                    .padding(6)
+                }
+                .frame(maxHeight: .infinity)
             }
         }
         .onChange(of: leftText) { _, _ in computeDiff() }
         .onChange(of: rightText) { _, _ in computeDiff() }
     }
 
-    // MARK: - Build display lines
-
-    private struct DisplayLine {
-        let text: String
-        let type: DiffLineType
+    private func colorFor(_ type: DiffLineType) -> Color {
+        switch type { case .equal: .primary; case .added: .green; case .removed: .red }
     }
 
-    private func buildLeftLines() -> [DisplayLine] {
-        if diffLines.isEmpty {
-            return leftText.components(separatedBy: "\n").map { DisplayLine(text: $0, type: .equal) }
-        }
-        return diffLines.compactMap { line in
-            switch line.type {
-            case .equal: DisplayLine(text: line.text, type: .equal)
-            case .removed: DisplayLine(text: line.text, type: .removed)
-            case .added: nil // added lines don't appear in left panel
-            }
-        }
-    }
-
-    private func buildRightLines() -> [DisplayLine] {
-        if diffLines.isEmpty {
-            return rightText.components(separatedBy: "\n").map { DisplayLine(text: $0, type: .equal) }
-        }
-        return diffLines.compactMap { line in
-            switch line.type {
-            case .equal: DisplayLine(text: line.text, type: .equal)
-            case .added: DisplayLine(text: line.text, type: .added)
-            case .removed: nil // removed lines don't appear in right panel
-            }
-        }
+    private func bgFor(_ type: DiffLineType) -> Color {
+        switch type { case .equal: .clear; case .added: .green.opacity(0.08); case .removed: .red.opacity(0.08) }
     }
 
     private func computeDiff() {
-        if leftText.isEmpty && rightText.isEmpty {
-            diffLines = []; stats = nil; return
-        }
+        if leftText.isEmpty && rightText.isEmpty { diffLines = []; stats = nil; return }
         diffLines = DiffEngine.diff(old: leftText, new: rightText)
         stats = DiffEngine.stats(from: diffLines)
     }
