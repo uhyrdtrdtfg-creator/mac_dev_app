@@ -1,7 +1,15 @@
-<?xml version="1.0" encoding="utf-8"?>
-<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" xmlns:dc="http://purl.org/dc/elements/1.1/">
-  <channel>
-    <title>DevToolkit Updates</title>
-    <language>en</language>
-  </channel>
+<?xml version='1.0' encoding='utf-8'?>
+<rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
+    <channel>
+        <title>DevToolkit Updates</title>
+        <language>en</language>
+        <item>
+            <title>Version 1.0.1</title>
+            <sparkle:version>68</sparkle:version>
+            <sparkle:shortVersionString>1.0.1</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>26.0</sparkle:minimumSystemVersion>
+            <pubDate>Thu, 09 Apr 2026 15:14:07 +0000</pubDate>
+            <enclosure url="https://github.com/uhyrdtrdtfg-creator/mac_dev_app/releases/download/v1.0.1/DevToolkit.zip" type="application/octet-stream" sparkle:edSignature="aGO9XevrtEeA1FqJlLzLKkC/QZAetdnonrncy7mo660VbeFO02bJWDhSgbwIVKfbTcWAK0gR8O541YMYBrFTDg==" length="2589422" />
+        </item>
+    </channel>
 </rss>
