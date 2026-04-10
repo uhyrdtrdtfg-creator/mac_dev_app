@@ -12,6 +12,7 @@ struct ChainEditorView: View {
     @State private var showAddStep = false
     @State private var addStepSearch = ""
     @State private var expandedStepId: UUID?
+    @State private var editingVarsStepId: UUID?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -114,7 +115,28 @@ struct ChainEditorView: View {
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
 
+            if !step.variables.isEmpty {
+                Text("\(step.variables.filter { $0.isEnabled && !$0.key.isEmpty }.count) vars")
+                    .font(.caption2)
+                    .foregroundStyle(.orange)
+            }
+
             Spacer()
+
+            Button {
+                editingVarsStepId = editingVarsStepId == step.id ? nil : step.id
+            } label: {
+                Image(systemName: "slider.horizontal.3")
+                    .font(.caption2)
+            }
+            .buttonStyle(.borderless)
+            .help("Step Variables")
+            .popover(isPresented: Binding(
+                get: { editingVarsStepId == step.id },
+                set: { if !$0 { editingVarsStepId = nil } }
+            )) {
+                stepVariablesEditor(step)
+            }
 
             Button { moveStep(step, direction: -1) } label: {
                 Image(systemName: "chevron.up")
@@ -321,6 +343,61 @@ struct ChainEditorView: View {
         }
         .padding(.leading, 24)
         .padding(.bottom, 8)
+    }
+
+    // MARK: - Step Variables Editor
+
+    private func stepVariablesEditor(_ step: ChainStepModel) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Step Variables").font(.headline)
+            Text("Set environment variables for this step (available as {{key}} in URL, headers, body)")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            VStack(spacing: 4) {
+                ForEach(step.variables.indices, id: \.self) { i in
+                    HStack(spacing: 4) {
+                        TextField("Key", text: Binding(
+                            get: { step.variables[i].key },
+                            set: { var vars = step.variables; vars[i].key = $0; step.variables = vars }
+                        ))
+                        .textFieldStyle(.roundedBorder)
+                        .font(.caption)
+                        .frame(width: 120)
+
+                        TextField("Value", text: Binding(
+                            get: { step.variables[i].value },
+                            set: { var vars = step.variables; vars[i].value = $0; step.variables = vars }
+                        ))
+                        .textFieldStyle(.roundedBorder)
+                        .font(.caption)
+
+                        Button {
+                            var vars = step.variables
+                            vars.remove(at: i)
+                            step.variables = vars
+                        } label: {
+                            Image(systemName: "minus.circle.fill")
+                                .foregroundStyle(.red)
+                                .font(.caption)
+                        }
+                        .buttonStyle(.borderless)
+                    }
+                }
+            }
+
+            Button {
+                var vars = step.variables
+                vars.append(KeyValuePair())
+                step.variables = vars
+            } label: {
+                Label("Add Variable", systemImage: "plus")
+                    .font(.caption)
+            }
+            .buttonStyle(.bordered)
+        }
+        .padding()
+        .frame(width: 400)
     }
 
     // MARK: - Actions

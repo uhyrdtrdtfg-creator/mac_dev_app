@@ -39,6 +39,13 @@ public final class ChainRunnerService {
                 return
             }
 
+            // Inject per-step variables into environment
+            let stepVars = step.variables.filter { $0.isEnabled && !$0.key.isEmpty }
+            let envStore = ScriptEngine.getEnvironmentStore()
+            for pair in stepVars {
+                envStore.set(pair.key, pair.value)
+            }
+
             // Restore request parameters from SavedRequest
             let method = HTTPMethod(rawValue: savedRequest.method) ?? .get
             let headers = savedRequest.headers.isEmpty ? [KeyValuePair()] : savedRequest.headers
