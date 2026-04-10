@@ -36,6 +36,8 @@ public struct APIClientView: View {
     @State private var saveRequestTags = ""
     @State private var rewriteScript = ""
     @State private var rewriteScriptLogs: [ScriptConsoleOutput] = []
+    @State private var showChains = false
+    @State private var selectedChain: ChainModel?
 
     public init() {}
 
@@ -128,6 +130,22 @@ public struct APIClientView: View {
                     .padding()
                     .frame(width: 500, height: 300)
                 }
+
+                Button {
+                    showChains.toggle()
+                    if showChains {
+                        showSaved = false
+                        showHistory = false
+                    }
+                    if !showChains {
+                        selectedChain = nil
+                    }
+                } label: {
+                    Image(systemName: "link")
+                        .font(.caption)
+                }
+                .buttonStyle(.bordered)
+                .help("Chains")
             }
             .padding(.horizontal, 12)
             .padding(.top, 8)
@@ -160,29 +178,43 @@ public struct APIClientView: View {
                     Divider()
                 }
 
-                VSplitView {
-                    RequestEditorView(
-                        method: $method, url: $url, queryParams: $queryParams, headers: $headers,
-                        bodyType: $bodyType, jsonBody: $jsonBody, formDataPairs: $formDataPairs, rawBody: $rawBody,
-                        authMethod: $authMethod, bearerToken: $bearerToken, basicUsername: $basicUsername, basicPassword: $basicPassword,
-                        apiKeyName: $apiKeyName, apiKeyValue: $apiKeyValue, apiKeyLocation: $apiKeyLocation,
-                        preScript: $preScript, postScript: $postScript, consoleLogs: consoleLogs,
-                        isSending: isSending, onSend: sendRequest
-                    )
-                    .frame(maxWidth: .infinity, minHeight: 220)
-
-                    ResponseView(
-                        response: response,
-                        error: errorMessage,
-                        curlCommand: lastCurlCommand,
-                        rewriteScript: $rewriteScript,
-                        rewriteScriptLogs: rewriteScriptLogs
-                    ) { rewritten in
-                        response = rewritten
+                if showChains {
+                    ChainListView { chain in
+                        selectedChain = chain
                     }
-                    .frame(maxWidth: .infinity, minHeight: 180)
+                    .frame(width: 250)
+
+                    Divider()
                 }
-                .frame(maxWidth: .infinity)
+
+                if let chain = selectedChain {
+                    ChainEditorView(chain: chain)
+                        .frame(maxWidth: .infinity)
+                } else {
+                    VSplitView {
+                        RequestEditorView(
+                            method: $method, url: $url, queryParams: $queryParams, headers: $headers,
+                            bodyType: $bodyType, jsonBody: $jsonBody, formDataPairs: $formDataPairs, rawBody: $rawBody,
+                            authMethod: $authMethod, bearerToken: $bearerToken, basicUsername: $basicUsername, basicPassword: $basicPassword,
+                            apiKeyName: $apiKeyName, apiKeyValue: $apiKeyValue, apiKeyLocation: $apiKeyLocation,
+                            preScript: $preScript, postScript: $postScript, consoleLogs: consoleLogs,
+                            isSending: isSending, onSend: sendRequest
+                        )
+                        .frame(maxWidth: .infinity, minHeight: 220)
+
+                        ResponseView(
+                            response: response,
+                            error: errorMessage,
+                            curlCommand: lastCurlCommand,
+                            rewriteScript: $rewriteScript,
+                            rewriteScriptLogs: rewriteScriptLogs
+                        ) { rewritten in
+                            response = rewritten
+                        }
+                        .frame(maxWidth: .infinity, minHeight: 180)
+                    }
+                    .frame(maxWidth: .infinity)
+                }
             }
         }
     }

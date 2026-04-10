@@ -53,7 +53,9 @@ struct MacDevAppApp: App {
             HTTPRequestModel.self,
             HTTPCollectionModel.self,
             HTTPHistoryModel.self,
-            SavedRequestModel.self
+            SavedRequestModel.self,
+            ChainModel.self,
+            ChainStepModel.self
         ])
         .windowStyle(.automatic)
         .defaultSize(width: 1100, height: 750)
