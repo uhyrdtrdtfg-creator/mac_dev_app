@@ -1,7 +1,6 @@
 import SwiftUI
 import SwiftData
 import DevAppCore
-import CCommonCryptoAPI
 
 public struct APIClientView: View {
     @Environment(\.modelContext) private var modelContext
@@ -194,6 +193,7 @@ public struct APIClientView: View {
         errorMessage = nil
         lastCurlCommand = nil
         consoleLogs = []
+        rewriteScriptLogs = []
 
         let currentBody: RequestBody? = {
             switch bodyType {
@@ -214,143 +214,28 @@ public struct APIClientView: View {
         }()
 
         Task {
-            do {
-                var request = try HTTPClientService.buildURLRequest(
-                    method: method, url: url, headers: headers,
-                    queryParams: queryParams, body: currentBody, auth: currentAuth
-                )
+            let result = await RequestExecutor.execute(
+                method: method,
+                url: url,
+                headers: headers,
+                queryParams: queryParams,
+                body: currentBody,
+                auth: currentAuth,
+                preScript: preScript.isEmpty ? nil : preScript,
+                postScript: postScript.isEmpty ? nil : postScript,
+                rewriteScript: rewriteScript.isEmpty ? nil : rewriteScript
+            )
 
-                // Run pre-request script
-                if !preScript.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    var scriptCtx = ScriptContext(
-                        requestMethod: method.rawValue,
-                        requestURL: url,
-                        requestHeaders: Dictionary(uniqueKeysWithValues: headers.filter(\.isEnabled).map { ($0.key, $0.value) })
-                    )
-                    if case .json(let json) = currentBody { scriptCtx.requestBody = json }
-
-                    let preResult = ScriptEngine.runPreScriptCompat(preScript, context: scriptCtx)
-                    consoleLogs.append(contentsOf: preResult.logs)
-
-                    let updatedCtx = preResult.context
-                    let updatedMethod = HTTPMethod(rawValue: updatedCtx.requestMethod) ?? method
-                    let updatedHeaders = updatedCtx.requestHeaders.map { KeyValuePair(key: $0.key, value: $0.value) }
-                    let updatedBody: RequestBody? = updatedCtx.requestBody.map { .json($0) } ?? currentBody
-                    request = try HTTPClientService.buildURLRequest(
-                        method: updatedMethod, url: updatedCtx.requestURL,
-                        headers: updatedHeaders, queryParams: [],
-                        body: updatedBody, auth: nil
-                    )
-                }
-
-                // Resolve {{variable}} templates AFTER pre-script (env vars are now set)
-                let envStore = ScriptEngine.getEnvironmentStore()
-                if let finalHeaders = request.allHTTPHeaderFields {
-                    for (key, value) in finalHeaders {
-                        let resolved = resolveTemplates(value, env: envStore)
-                        if resolved != value {
-                            request.setValue(resolved, forHTTPHeaderField: key)
-                        }
-                    }
-                }
-                if let finalURL = request.url?.absoluteString {
-                    let resolvedURL = resolveTemplates(finalURL, env: envStore)
-                    if resolvedURL != finalURL, let newURL = URL(string: resolvedURL) {
-                        request.url = newURL
-                    }
-                }
-                if let bodyData = request.httpBody, let bodyStr = String(data: bodyData, encoding: .utf8) {
-                    let resolvedBody = resolveTemplates(bodyStr, env: envStore)
-                    if resolvedBody != bodyStr {
-                        request.httpBody = Data(resolvedBody.utf8)
-                    }
-                }
-
-                lastCurlCommand = CurlHelper.export(request)
-
-                // Debug: verify what we're actually sending matches what script computed
-                if !preScript.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    let actualBody = request.httpBody.flatMap { String(data: $0, encoding: .utf8) } ?? "(nil)"
-                    let actualURL = request.url?.absoluteString ?? "(nil)"
-                    let actualHeaders = request.allHTTPHeaderFields ?? [:]
-                    consoleLogs.append(ScriptConsoleOutput(message: "\n[DEBUG] Actual request URL: \(actualURL)"))
-                    consoleLogs.append(ScriptConsoleOutput(message: "[DEBUG] Actual body length: \(request.httpBody?.count ?? 0) bytes"))
-                    consoleLogs.append(ScriptConsoleOutput(message: "[DEBUG] Actual body SHA256: \(sha256Hex(request.httpBody ?? Data()))"))
-                    consoleLogs.append(ScriptConsoleOutput(message: "[DEBUG] Content-Type: \(actualHeaders["Content-Type"] ?? "(not set)")"))
-                    consoleLogs.append(ScriptConsoleOutput(message: "[DEBUG] x-acgw-sign: \(actualHeaders["x-acgw-sign"]?.prefix(40) ?? "(not set)")..."))
-                    consoleLogs.append(ScriptConsoleOutput(message: "[DEBUG] x-acgw-timestamp: \(actualHeaders["x-acgw-timestamp"] ?? "(not set)")"))
-                    consoleLogs.append(ScriptConsoleOutput(message: "[DEBUG] x-acgw-nonce: \(actualHeaders["x-acgw-nonce"] ?? "(not set)")"))
-                    consoleLogs.append(ScriptConsoleOutput(message: "[DEBUG] Header count: \(actualHeaders.count)"))
-                }
-
-                let httpResponse = try await HTTPClientService.send(request)
-                response = httpResponse
-
-                // Run post-request script
-                if !postScript.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    let postCtx = ScriptContext(
-                        requestMethod: method.rawValue,
-                        requestURL: url,
-                        requestHeaders: [:],
-                        responseStatus: httpResponse.statusCode,
-                        responseBody: String(data: httpResponse.body, encoding: .utf8),
-                        responseHeaders: httpResponse.headers,
-                        responseDuration: httpResponse.duration
-                    )
-                    let postLogs = ScriptEngine.runPostScript(postScript, context: postCtx)
-                    consoleLogs.append(contentsOf: postLogs)
-                }
-
-                // Auto-run rewrite script if set
-                if !rewriteScript.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-                   let currentResponse = response {
-                    let bodyString = String(data: currentResponse.body, encoding: .utf8) ?? ""
-                    let rwCtx = ScriptContext(
-                        requestMethod: method.rawValue,
-                        requestURL: url,
-                        requestHeaders: [:],
-                        responseStatus: currentResponse.statusCode,
-                        responseBody: bodyString,
-                        responseHeaders: currentResponse.headers,
-                        responseDuration: currentResponse.duration
-                    )
-                    let rwResult = ScriptEngine.runRewriteScript(rewriteScript, context: rwCtx)
-                    rewriteScriptLogs = rwResult.logs
-                    consoleLogs.append(contentsOf: rwResult.logs)
-
-                    let newStatus = rwResult.context.responseStatus ?? currentResponse.statusCode
-                    let newBody = Data((rwResult.context.responseBody ?? bodyString).utf8)
-                    let newHeaders = rwResult.context.responseHeaders ?? currentResponse.headers
-                    response = HTTPResponse(
-                        statusCode: newStatus,
-                        headers: newHeaders,
-                        body: newBody,
-                        duration: currentResponse.duration,
-                        bodySize: newBody.count,
-                        cookies: currentResponse.cookies
-                    )
-                }
-
-                // Save to history
-                saveToHistory(httpResponse)
-
-            } catch {
-                errorMessage = error.localizedDescription
+            consoleLogs = result.consoleLogs
+            if let resp = result.response {
+                response = resp
+                saveToHistory(resp)
+            }
+            if let err = result.error {
+                errorMessage = err
             }
             isSending = false
         }
-    }
-
-    private func sha256Hex(_ data: Data) -> String {
-        let hash = data.withUnsafeBytes { ptr -> [UInt8] in
-            var hasher = CC_SHA256_CTX()
-            CC_SHA256_Init(&hasher)
-            CC_SHA256_Update(&hasher, ptr.baseAddress, CC_LONG(data.count))
-            var digest = [UInt8](repeating: 0, count: 32)
-            CC_SHA256_Final(&digest, &hasher)
-            return digest
-        }
-        return hash.map { String(format: "%02x", $0) }.joined()
     }
 
     private func saveToHistory(_ httpResponse: HTTPResponse) {
@@ -500,19 +385,6 @@ public struct APIClientView: View {
         errorMessage = nil
     }
 
-    /// Replace {{variable}} templates with values from pm.environment
-    private func resolveTemplates(_ text: String, env: EnvironmentStore) -> String {
-        var result = text
-        // Match {{variableName}} patterns
-        let pattern = /\{\{([^}]+)\}\}/
-        for match in text.matches(of: pattern) {
-            let key = String(match.1).trimmingCharacters(in: .whitespaces)
-            if let value = env.get(key) {
-                result = result.replacingOccurrences(of: String(match.0), with: value)
-            }
-        }
-        return result
-    }
 }
 
 extension APIClientView {
