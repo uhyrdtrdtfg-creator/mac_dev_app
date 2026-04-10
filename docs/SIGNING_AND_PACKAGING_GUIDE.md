@@ -295,46 +295,151 @@ echo "Done! ~/Desktop/DevToolkit.dmg"
 
 ---
 
-## 六、自动更新与发布
+## 六、自动打包发布（GitHub Actions CI/CD）
+
+### 原理
+
+整个自动打包流程基于 GitHub Actions，配置文件在 `.github/workflows/release.yml`。当推送 `v*.*.*` 格式的 git tag 或在 GitHub Actions 页面手动触发时，macOS runner 自动执行完整的构建发布流水线。
+
+#### 流水线步骤
+
+```
+1. Checkout 代码
+2. 安装 xcodegen，生成 .xcodeproj（因为 .xcodeproj 在 .gitignore 中不提交）
+3. 确定版本号（从 tag 或手动输入提取）+ build number（git commit 总数）
+4. 安装证书
+   - 从 GitHub Secrets 解码 .p12 证书（Base64）
+   - 创建临时 Keychain，导入证书
+   - 配置 codesign 免密访问（set-key-partition-list）
+5. 配置 notarytool 凭据（Apple ID + App-Specific Password + Team ID）
+6. 解析 SPM 依赖（包括 Sparkle 框架）
+7. xcodebuild archive（Developer ID 签名 + Hardened Runtime）
+8. xcodebuild -exportArchive → .app
+9. 公证（notarize）
+   - ZIP 压缩 .app → 提交 Apple 公证服务 → 等待审核通过
+   - xcrun stapler staple（将公证票据嵌入 .app）
+10. 创建最终发布 ZIP（包含 staple 后的 .app）
+11. Sparkle EdDSA 签名
+    - 下载 Sparkle 2.9.1 工具
+    - 用私钥对 ZIP 签名，生成 edSignature + length
+12. 更新 appcast.xml
+    - Python 脚本（scripts/update_appcast.py）插入新版本条目
+    - 包含：版本号、下载 URL、EdDSA 签名、文件大小、发布日期
+13. 创建 git tag（仅手动触发时）
+14. 提交 appcast.xml 到 main 分支
+15. 创建 GitHub Release + 上传 ZIP
+16. 清理临时 Keychain
+```
+
+#### 关键配置
+
+**GitHub Secrets（6 个）：**
+
+| Secret | 用途 |
+|--------|------|
+| `DEVELOPER_ID_CERTIFICATE_P12` | Developer ID 证书的 Base64 编码 |
+| `DEVELOPER_ID_CERTIFICATE_PASSWORD` | .p12 导出密码 |
+| `APPLE_ID` | Apple ID 邮箱（用于公证） |
+| `APPLE_ID_PASSWORD` | App-Specific Password（用于公证） |
+| `APPLE_TEAM_ID` | `4257SFGRFK` |
+| `SPARKLE_PRIVATE_KEY` | EdDSA 私钥（用于签名更新包） |
+
+**Runner 环境：**
+- `macos-26`（Xcode 26.2 + Swift 6.2，支持 swift-tools-version: 6.2）
+- Homebrew 安装 xcodegen
+- Sparkle 工具从 GitHub Release 下载
 
 ### 发布方式
 
 **方式一：Tag 触发自动发布**
 
 ```bash
-git tag v1.1.0
-git push origin v1.1.0
+git tag v1.2.0
+git push origin v1.2.0
+# → GitHub Actions 自动构建、签名、公证、发布
 ```
-
-GitHub Actions 自动执行：构建 → 签名 → 公证 → Sparkle 签名 → 创建 Release → 更新 appcast.xml。
 
 **方式二：手动触发**
 
-GitHub repo → Actions → "Build, Notarize & Release" → Run workflow → 输入版本号。
+```
+GitHub repo → Actions → "Build, Notarize & Release" → Run workflow → 输入版本号
+```
 
-### 用户端更新流程
+**方式三：命令行手动触发**
 
-1. 应用启动时 + 每小时自动检查 appcast.xml
-2. 发现新版本后静默下载 ZIP
-3. 验证 EdDSA 签名
-4. 用户退出应用时自动替换，下次启动即为新版
+```bash
+gh workflow run release.yml --repo uhyrdtrdtfg-creator/mac_dev_app -f version=1.2.0
+```
+
+### 版本号管理
+
+- `MARKETING_VERSION`（如 1.1.0）：从 git tag 或手动输入提取
+- `CURRENT_PROJECT_VERSION`（build number）：自动设为 `git rev-list --count HEAD`（commit 总数）
+- `project.yml` 中的版本号是开发期间的默认值，发布时由 CI 覆盖
+
+### 用户端自动更新原理
+
+应用内集成了 Sparkle 框架（SPM 依赖），实现静默自动更新：
+
+```
+App 启动
+  → SPUUpdater 初始化（静默模式）
+  → 检查 appcast.xml（GitHub repo raw URL）
+  → 对比当前版本与 appcast 中的最新版本
+  → 发现新版本 → 后台下载 ZIP
+  → 验证 EdDSA 签名（Info.plist 中的 SUPublicEDKey）
+  → 用户退出 app 时 → 原子替换 .app bundle
+  → 下次启动即为新版
+```
+
+**检查频率**：启动时检查一次 + 每小时轮询（`updateCheckInterval = 3600`）
+
+**安全保障**（三重验证）：
+1. HTTPS 传输（防中间人篡改）
+2. EdDSA 签名验证（防伪造更新包）
+3. Apple 代码签名 + 公证（macOS Gatekeeper 保护）
+
+### appcast.xml
+
+版本元数据文件，托管在 repo 根目录，通过 raw URL 访问：
+`https://raw.githubusercontent.com/uhyrdtrdtfg-creator/mac_dev_app/main/appcast.xml`
+
+由 CI 自动维护，每次发布后自动追加新版本条目。格式示例：
+
+```xml
+<item>
+    <title>Version 1.1.0</title>
+    <sparkle:version>78</sparkle:version>
+    <sparkle:shortVersionString>1.1.0</sparkle:shortVersionString>
+    <sparkle:minimumSystemVersion>26.0</sparkle:minimumSystemVersion>
+    <pubDate>Thu, 10 Apr 2026 05:22:20 +0000</pubDate>
+    <enclosure
+        url="https://github.com/.../releases/download/v1.1.0/DevToolkit.zip"
+        sparkle:edSignature="base64签名..."
+        length="2601234" />
+</item>
+```
 
 ### 密钥管理
 
-- **EdDSA 公钥**：写在 Info.plist 的 `SUPublicEDKey` 字段
-- **EdDSA 私钥**：存在 GitHub Secrets 的 `SPARKLE_PRIVATE_KEY`
+- **EdDSA 公钥**：写在 `Info.plist` 的 `SUPublicEDKey` 字段，随 app 分发
+- **EdDSA 私钥**：存在 GitHub Secrets 的 `SPARKLE_PRIVATE_KEY`，仅 CI 使用
 - **Developer ID 证书**：.p12 Base64 存在 GitHub Secrets
 
 如需重新生成 EdDSA 密钥对：
 
 ```bash
 # 从 Sparkle release 获取工具
-/path/to/generate_keys        # 生成新密钥对
-/path/to/generate_keys -x /path/to/output  # 导出私钥
+curl -L -o /tmp/Sparkle.tar.xz https://github.com/sparkle-project/Sparkle/releases/download/2.9.1/Sparkle-2.9.1.tar.xz
+mkdir -p /tmp/sparkle && tar -xf /tmp/Sparkle.tar.xz -C /tmp/sparkle
+
+/tmp/sparkle/bin/generate_keys              # 生成新密钥对，公钥打印到终端
+/tmp/sparkle/bin/generate_keys -x /tmp/key  # 导出私钥到文件
+cat /tmp/key                                # 查看私钥
 ```
 
 更新后需同步修改 Info.plist 中的公钥和 GitHub Secrets 中的私钥。
 
 ---
 
-更新时间：2026-04-09
+更新时间：2026-04-10
