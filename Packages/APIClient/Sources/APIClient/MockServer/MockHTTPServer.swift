@@ -92,6 +92,8 @@ public struct MockRequest: Identifiable, Sendable {
 @Observable
 @MainActor
 public final class MockHTTPServer {
+    public static let shared = MockHTTPServer()
+
     public var isRunning = false
     public var port: UInt16 = 8080
     public var routes: [MockRoute] = [

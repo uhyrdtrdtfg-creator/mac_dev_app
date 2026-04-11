@@ -2,7 +2,7 @@ import SwiftUI
 import DevAppCore
 
 public struct MockServerView: View {
-    @State private var server = MockHTTPServer()
+    @State private var server = MockHTTPServer.shared
     @State private var showAddRoute = false
     @State private var editingRoute: MockRoute?
 
