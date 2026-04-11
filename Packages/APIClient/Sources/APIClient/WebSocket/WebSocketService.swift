@@ -85,8 +85,19 @@ public final class WebSocketClient {
         let session = URLSession(configuration: .default)
         webSocketTask = session.webSocketTask(with: url)
         webSocketTask?.resume()
-        state = .connected
-        startReceivingWebSocket()
+
+        // Verify connection with ping, then start receiving
+        webSocketTask?.sendPing { [weak self] error in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                if let error {
+                    self.state = .error(error.localizedDescription)
+                } else {
+                    self.state = .connected
+                    self.startReceivingWebSocket()
+                }
+            }
+        }
     }
 
     private func startReceivingWebSocket() {

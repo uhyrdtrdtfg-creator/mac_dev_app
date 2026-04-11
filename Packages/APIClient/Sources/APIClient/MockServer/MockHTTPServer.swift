@@ -382,9 +382,28 @@ public final class MockHTTPServer {
                     }
                 }
 
-                // Check for close frame (opcode 0x8)
-                if data.count >= 2 && (data[0] & 0x0F) == 0x8 {
-                    // Send close frame back
+                let opcode = data[0] & 0x0F
+
+                // Ping frame (0x9) → reply with pong (0xA)
+                if opcode == 0x9 {
+                    var pongFrame = Data([0x8A]) // FIN + pong opcode
+                    let payloadLen = data.count > 2 ? Int(data[1] & 0x7F) : 0
+                    pongFrame.append(UInt8(min(payloadLen, 125)))
+                    // Copy ping payload to pong if any (unmasked)
+                    if payloadLen > 0 && data.count > 6 {
+                        let maskStart = 2
+                        let mask = Array(data[maskStart..<maskStart+4])
+                        var payload = Array(data[(maskStart+4)..<min(maskStart+4+payloadLen, data.count)])
+                        for i in 0..<payload.count { payload[i] ^= mask[i % 4] }
+                        pongFrame.append(contentsOf: payload)
+                    }
+                    connection.send(content: pongFrame, completion: .contentProcessed { _ in })
+                    self.receiveWebSocketFrame(connection: connection, route: route)
+                    return
+                }
+
+                // Close frame (0x8)
+                if opcode == 0x8 {
                     let closeFrame = Data([0x88, 0x00])
                     connection.send(content: closeFrame, completion: .contentProcessed { _ in
                         connection.cancel()
