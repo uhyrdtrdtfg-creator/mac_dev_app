@@ -13,11 +13,11 @@ public struct JSONYamlView: View {
         VStack(alignment: .leading, spacing: 16) {
             VStack(alignment: .leading, spacing: 4) {
                 Text("JSON ↔ YAML Converter")
-                    .font(.title2)
+                    .font(.title3)
                     .fontWeight(.bold)
                 Text("Type in either panel — left converts JSON to YAML, right converts YAML to JSON")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
             }
 
             if let errorMessage {
@@ -42,9 +42,9 @@ public struct JSONYamlView: View {
                         .font(.system(.body, design: .monospaced))
                         .scrollContentBackground(.hidden)
                         .padding(10)
-                        .background(.background.secondary)
+                        .background(.fill.tertiary)
                         .clipShape(RoundedRectangle(cornerRadius: 10))
-                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(.quaternary, lineWidth: 1))
+                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(.separator, lineWidth: 0.5))
                 }
 
                 // Arrow
@@ -68,9 +68,9 @@ public struct JSONYamlView: View {
                         .font(.system(.body, design: .monospaced))
                         .scrollContentBackground(.hidden)
                         .padding(10)
-                        .background(.background.secondary)
+                        .background(.fill.tertiary)
                         .clipShape(RoundedRectangle(cornerRadius: 10))
-                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(.quaternary, lineWidth: 1))
+                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(.separator, lineWidth: 0.5))
                 }
             }
         }

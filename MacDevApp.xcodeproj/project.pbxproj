@@ -10,6 +10,7 @@
 		4B59BED42E70A263295E3439 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 8735535E3603F195334E2057 /* Assets.xcassets */; };
 		4DE74DA367029D09DFCD254A /* DevAppCore in Frameworks */ = {isa = PBXBuildFile; productRef = 57ED970735B49D8092D048C3 /* DevAppCore */; };
 		521F98159BE0282B51CF419E /* APIClient in Frameworks */ = {isa = PBXBuildFile; productRef = 9DE7889CBAD97C4D6D6BCAA2 /* APIClient */; };
+		59E9EF15705C7B06F77B2398 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 42E07871FD70E8ADD1391DD0 /* Sparkle */; };
 		5A490AE1135C4CFE56DA9C0F /* ToolRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F706069CE7F18A563EE0C51 /* ToolRegistry.swift */; };
 		7BECBB976BA08E84513E2DE8 /* CryptoTools in Frameworks */ = {isa = PBXBuildFile; productRef = 70F202CAF23B1C6602368B33 /* CryptoTools */; };
 		8255F9EF2C310D0A33E11975 /* ConversionTools in Frameworks */ = {isa = PBXBuildFile; productRef = A3F5C5CB95BF15643BDF5556 /* ConversionTools */; };
@@ -41,6 +42,7 @@
 				7BECBB976BA08E84513E2DE8 /* CryptoTools in Frameworks */,
 				8255F9EF2C310D0A33E11975 /* ConversionTools in Frameworks */,
 				521F98159BE0282B51CF419E /* APIClient in Frameworks */,
+				59E9EF15705C7B06F77B2398 /* Sparkle in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -117,6 +119,7 @@
 				70F202CAF23B1C6602368B33 /* CryptoTools */,
 				A3F5C5CB95BF15643BDF5556 /* ConversionTools */,
 				9DE7889CBAD97C4D6D6BCAA2 /* APIClient */,
+				42E07871FD70E8ADD1391DD0 /* Sparkle */,
 			);
 			productName = MacDevApp;
 			productReference = AF5E3409A2C10A159200986C /* MacDevApp.app */;
@@ -143,6 +146,7 @@
 			mainGroup = B7B6FC77FBFB5B5C488FB2C6;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
+				487019ACE026A85F5CABC6FC /* XCRemoteSwiftPackageReference "Sparkle" */,
 				582D083530C92D10B8187D65 /* XCLocalSwiftPackageReference "Packages/APIClient" */,
 				18DC0F48B1562714FE0D46B7 /* XCLocalSwiftPackageReference "Packages/ConversionTools" */,
 				4023F0483EFE4D64AA071755 /* XCLocalSwiftPackageReference "Packages/CryptoTools" */,
@@ -387,7 +391,23 @@
 		};
 /* End XCLocalSwiftPackageReference section */
 
+/* Begin XCRemoteSwiftPackageReference section */
+		487019ACE026A85F5CABC6FC /* XCRemoteSwiftPackageReference "Sparkle" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sparkle-project/Sparkle";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.6.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
 /* Begin XCSwiftPackageProductDependency section */
+		42E07871FD70E8ADD1391DD0 /* Sparkle */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 487019ACE026A85F5CABC6FC /* XCRemoteSwiftPackageReference "Sparkle" */;
+			productName = Sparkle;
+		};
 		57ED970735B49D8092D048C3 /* DevAppCore */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = DevAppCore;

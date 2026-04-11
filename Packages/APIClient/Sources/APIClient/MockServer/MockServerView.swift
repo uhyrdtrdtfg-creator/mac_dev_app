@@ -332,6 +332,9 @@ struct RouteEditorSheet: View {
     @State private var responseBody = "{\"message\": \"ok\"}"
     @State private var contentType = "application/json"
     @State private var isSSE = false
+    @State private var isWebSocket = false
+    @State private var wsEchoMode = true
+    @State private var wsAutoMessages: [String] = []
     @State private var sseEvents: [SSEEvent] = []
     @State private var sseIntervalMs = 1000
 
@@ -384,11 +387,21 @@ struct RouteEditorSheet: View {
                             .frame(width: 80)
                     }
 
-                    // SSE toggle
-                    Toggle("SSE Endpoint (Server-Sent Events)", isOn: $isSSE)
-                        .font(.caption)
+                    // Endpoint type
+                    HStack(spacing: 16) {
+                        Toggle("SSE", isOn: $isSSE)
+                            .toggleStyle(.checkbox)
+                            .font(.caption)
+                            .onChange(of: isSSE) { _, on in if on { isWebSocket = false } }
+                        Toggle("WebSocket", isOn: $isWebSocket)
+                            .toggleStyle(.checkbox)
+                            .font(.caption)
+                            .onChange(of: isWebSocket) { _, on in if on { isSSE = false } }
+                    }
 
-                    if isSSE {
+                    if isWebSocket {
+                        wsConfigSection
+                    } else if isSSE {
                         sseConfigSection
                     } else {
                         regularResponseSection
@@ -406,6 +419,9 @@ struct RouteEditorSheet: View {
                 responseBody = route.responseBody
                 contentType = route.contentType
                 isSSE = route.isSSE
+                isWebSocket = route.isWebSocket
+                wsEchoMode = route.wsEchoMode
+                wsAutoMessages = route.wsAutoMessages
                 sseEvents = route.sseEvents
                 sseIntervalMs = route.sseIntervalMs
             }
@@ -503,6 +519,53 @@ struct RouteEditorSheet: View {
         }
     }
 
+    private var wsConfigSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Toggle("Echo Mode (reply received messages)", isOn: $wsEchoMode)
+                .font(.caption)
+
+            Text("Echo Response Template (use {{message}} for received text):")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            TextEditor(text: $responseBody)
+                .font(.system(.body, design: .monospaced))
+                .frame(minHeight: 60)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .overlay(RoundedRectangle(cornerRadius: 8).stroke(.separator, lineWidth: 0.5))
+
+            HStack {
+                Text("Auto-send on connect:")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Button {
+                    wsAutoMessages.append("{\"type\": \"welcome\"}")
+                } label: {
+                    Label("Add", systemImage: "plus").font(.caption)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+            }
+
+            ForEach(Array(wsAutoMessages.enumerated()), id: \.offset) { idx, _ in
+                HStack {
+                    TextField("Message", text: Binding(
+                        get: { wsAutoMessages.indices.contains(idx) ? wsAutoMessages[idx] : "" },
+                        set: { if wsAutoMessages.indices.contains(idx) { wsAutoMessages[idx] = $0 } }
+                    ))
+                    .textFieldStyle(.roundedBorder)
+                    .font(.system(.caption, design: .monospaced))
+                    Button {
+                        if wsAutoMessages.indices.contains(idx) { wsAutoMessages.remove(at: idx) }
+                    } label: {
+                        Image(systemName: "trash").font(.caption).foregroundStyle(.red)
+                    }
+                    .buttonStyle(.borderless)
+                }
+            }
+        }
+    }
+
     private func save() {
         let route = MockRoute(
             id: existingRoute?.id ?? UUID(),
@@ -513,8 +576,11 @@ struct RouteEditorSheet: View {
             contentType: contentType,
             headers: existingRoute?.headers ?? [:],
             isSSE: isSSE,
+            isWebSocket: isWebSocket,
             sseEvents: sseEvents,
-            sseIntervalMs: sseIntervalMs
+            sseIntervalMs: sseIntervalMs,
+            wsEchoMode: wsEchoMode,
+            wsAutoMessages: wsAutoMessages
         )
         onSave(route)
         dismiss()

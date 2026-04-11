@@ -1,5 +1,6 @@
 import Foundation
 import Network
+import CCommonCryptoAPI
 
 // MARK: - Models
 
@@ -12,8 +13,11 @@ public struct MockRoute: Identifiable, Sendable {
     public var contentType: String
     public var headers: [String: String]
     public var isSSE: Bool
+    public var isWebSocket: Bool
     public var sseEvents: [SSEEvent]
     public var sseIntervalMs: Int
+    public var wsEchoMode: Bool  // echo back received messages
+    public var wsAutoMessages: [String]  // messages to send on connect
 
     public init(
         id: UUID = UUID(),
@@ -24,8 +28,11 @@ public struct MockRoute: Identifiable, Sendable {
         contentType: String = "application/json",
         headers: [String: String] = [:],
         isSSE: Bool = false,
+        isWebSocket: Bool = false,
         sseEvents: [SSEEvent] = [],
-        sseIntervalMs: Int = 1000
+        sseIntervalMs: Int = 1000,
+        wsEchoMode: Bool = true,
+        wsAutoMessages: [String] = []
     ) {
         self.id = id
         self.method = method
@@ -35,8 +42,11 @@ public struct MockRoute: Identifiable, Sendable {
         self.contentType = contentType
         self.headers = headers
         self.isSSE = isSSE
+        self.isWebSocket = isWebSocket
         self.sseEvents = sseEvents
         self.sseIntervalMs = sseIntervalMs
+        self.wsEchoMode = wsEchoMode
+        self.wsAutoMessages = wsAutoMessages
     }
 }
 
@@ -195,7 +205,9 @@ public final class MockHTTPServer {
                 }
 
                 if let route = matchedRoute {
-                    if route.isSSE {
+                    if route.isWebSocket {
+                        self.handleWebSocketUpgrade(connection: connection, route: route, rawRequest: requestString)
+                    } else if route.isSSE {
                         self.sendSSEResponse(connection: connection, route: route)
                     } else {
                         self.sendHTTPResponse(connection: connection, route: route)
@@ -293,6 +305,171 @@ public final class MockHTTPServer {
                 connection.cancel()
             }
         })
+    }
+
+    // MARK: - WebSocket Server
+
+    private func handleWebSocketUpgrade(connection: NWConnection, route: MockRoute, rawRequest: String) {
+        // Extract Sec-WebSocket-Key from headers
+        guard let keyLine = rawRequest.components(separatedBy: "\r\n").first(where: {
+            $0.lowercased().hasPrefix("sec-websocket-key:")
+        }) else {
+            send404(connection: connection, path: route.path)
+            return
+        }
+        let wsKey = keyLine.components(separatedBy: ":").dropFirst().joined(separator: ":").trimmingCharacters(in: .whitespaces)
+
+        // Compute accept key: Base64(SHA1(key + magic))
+        let magic = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
+        let combined = wsKey + magic
+        let sha1Data = insecureSHA1(Data(combined.utf8))
+        let acceptKey = sha1Data.base64EncodedString()
+
+        // Send upgrade response
+        let upgradeResponse = [
+            "HTTP/1.1 101 Switching Protocols",
+            "Upgrade: websocket",
+            "Connection: Upgrade",
+            "Sec-WebSocket-Accept: \(acceptKey)",
+        ].joined(separator: "\r\n") + "\r\n\r\n"
+
+        connection.send(content: Data(upgradeResponse.utf8), completion: .contentProcessed { [weak self] error in
+            guard error == nil else { connection.cancel(); return }
+
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+
+                // Send auto messages
+                for msg in route.wsAutoMessages where !msg.isEmpty {
+                    let frame = self.buildWebSocketFrame(text: msg)
+                    connection.send(content: frame, completion: .contentProcessed { _ in })
+                    try? await Task.sleep(for: .milliseconds(100))
+                }
+
+                // Listen for incoming frames
+                self.receiveWebSocketFrame(connection: connection, route: route)
+            }
+        })
+    }
+
+    private func receiveWebSocketFrame(connection: NWConnection, route: MockRoute) {
+        connection.receive(minimumIncompleteLength: 2, maximumLength: 65536) { [weak self] data, _, isComplete, error in
+            Task { @MainActor [weak self] in
+                guard let self, let data, !data.isEmpty else {
+                    connection.cancel()
+                    return
+                }
+
+                if let text = self.parseWebSocketFrame(data) {
+                    // Log received message
+                    self.requestLog.insert(
+                        MockRequest(method: "WS", path: "← \(text.prefix(80))", matched: true, responseStatus: nil),
+                        at: 0
+                    )
+
+                    // Echo mode: send back the message
+                    if route.wsEchoMode {
+                        let echoText = route.responseBody.isEmpty ? text : route.responseBody.replacingOccurrences(of: "{{message}}", with: text)
+                        let frame = self.buildWebSocketFrame(text: echoText)
+                        connection.send(content: frame, completion: .contentProcessed { _ in })
+
+                        self.requestLog.insert(
+                            MockRequest(method: "WS", path: "→ \(echoText.prefix(80))", matched: true, responseStatus: nil),
+                            at: 0
+                        )
+                    }
+                }
+
+                // Check for close frame (opcode 0x8)
+                if data.count >= 2 && (data[0] & 0x0F) == 0x8 {
+                    // Send close frame back
+                    let closeFrame = Data([0x88, 0x00])
+                    connection.send(content: closeFrame, completion: .contentProcessed { _ in
+                        connection.cancel()
+                    })
+                    return
+                }
+
+                // Continue receiving
+                self.receiveWebSocketFrame(connection: connection, route: route)
+            }
+        }
+    }
+
+    private func buildWebSocketFrame(text: String) -> Data {
+        let payload = Data(text.utf8)
+        var frame = Data()
+
+        // FIN + text opcode
+        frame.append(0x81)
+
+        // Length (server frames are NOT masked)
+        if payload.count < 126 {
+            frame.append(UInt8(payload.count))
+        } else if payload.count <= 65535 {
+            frame.append(126)
+            frame.append(UInt8((payload.count >> 8) & 0xFF))
+            frame.append(UInt8(payload.count & 0xFF))
+        } else {
+            frame.append(127)
+            for i in (0..<8).reversed() {
+                frame.append(UInt8((payload.count >> (i * 8)) & 0xFF))
+            }
+        }
+
+        frame.append(payload)
+        return frame
+    }
+
+    private func parseWebSocketFrame(_ data: Data) -> String? {
+        guard data.count >= 2 else { return nil }
+        let opcode = data[0] & 0x0F
+        guard opcode == 0x1 else { return nil } // text frame only
+
+        let masked = (data[1] & 0x80) != 0
+        var payloadLength = UInt64(data[1] & 0x7F)
+        var offset = 2
+
+        if payloadLength == 126 {
+            guard data.count >= 4 else { return nil }
+            payloadLength = UInt64(data[2]) << 8 | UInt64(data[3])
+            offset = 4
+        } else if payloadLength == 127 {
+            guard data.count >= 10 else { return nil }
+            payloadLength = 0
+            for i in 0..<8 {
+                payloadLength |= UInt64(data[2 + i]) << UInt64((7 - i) * 8)
+            }
+            offset = 10
+        }
+
+        var maskKey: [UInt8] = []
+        if masked {
+            guard data.count >= offset + 4 else { return nil }
+            maskKey = [data[offset], data[offset+1], data[offset+2], data[offset+3]]
+            offset += 4
+        }
+
+        let end = min(offset + Int(payloadLength), data.count)
+        guard end <= data.count else { return nil }
+        var payload = Array(data[offset..<end])
+
+        if masked {
+            for i in 0..<payload.count {
+                payload[i] ^= maskKey[i % 4]
+            }
+        }
+
+        return String(bytes: payload, encoding: .utf8)
+    }
+
+    private func insecureSHA1(_ data: Data) -> Data {
+        // Simple SHA-1 using CommonCrypto via CC_SHA1
+        var hash = [UInt8](repeating: 0, count: 20)
+        data.withUnsafeBytes { ptr in
+            _ = CC_SHA1(ptr.baseAddress, CC_LONG(data.count), &hash)
+        }
+        return Data(hash)
     }
 
     private func send404(connection: NWConnection, path: String) {

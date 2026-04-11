@@ -66,8 +66,8 @@ public struct TimestampConverterView: View {
     public var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
-                Text("Unix Timestamp Converter").font(.title2).fontWeight(.semibold)
-                Text("Convert between Unix timestamps and human-readable dates").font(.subheadline).foregroundStyle(.secondary)
+                Text("Unix Timestamp Converter").font(.title3).fontWeight(.semibold)
+                Text("Convert between Unix timestamps and human-readable dates").font(.caption).foregroundStyle(.tertiary)
             }
 
             HStack {
@@ -109,7 +109,7 @@ public struct TimestampConverterView: View {
                 }
             }
         }
-        .padding()
+        .padding(20)
         .onAppear { startTimer() }
         .onDisappear { timer?.invalidate() }
         .onChange(of: timestampInput) { _, newValue in convertTimestamp(newValue) }

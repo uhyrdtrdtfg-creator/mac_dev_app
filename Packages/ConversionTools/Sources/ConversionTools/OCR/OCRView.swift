@@ -17,11 +17,11 @@ public struct OCRView: View {
             // Header
             VStack(alignment: .leading, spacing: 4) {
                 Text("Image to Text (OCR)")
-                    .font(.title2)
-                    .fontWeight(.bold)
+                    .font(.title3)
+                    .fontWeight(.semibold)
                 Text("Paste from clipboard, drag & drop, or open an image to extract text")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
             }
 
             // Toolbar
@@ -122,11 +122,11 @@ public struct OCRView: View {
                         .font(.system(.body, design: .monospaced))
                         .scrollContentBackground(.hidden)
                         .padding(10)
-                        .background(.background.secondary)
-                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                        .background(.fill.tertiary)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
                         .overlay(
-                            RoundedRectangle(cornerRadius: 10)
-                                .stroke(.quaternary, lineWidth: 1)
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(.separator, lineWidth: 0.5)
                         )
                 }
             }

@@ -9,8 +9,8 @@ public struct RandomStringGeneratorView: View {
     public var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             VStack(alignment: .leading, spacing: 4) {
-                Text("Random String Generator").font(.title2).fontWeight(.bold)
-                Text("Generate random strings and passwords").font(.subheadline).foregroundStyle(.secondary)
+                Text("Random String Generator").font(.title3).fontWeight(.semibold)
+                Text("Generate random strings and passwords").font(.caption).foregroundStyle(.tertiary)
             }
             HStack(spacing: 20) {
                 Stepper("Length: \(length)", value: $length, in: 1...256).fixedSize()
@@ -25,7 +25,7 @@ public struct RandomStringGeneratorView: View {
                 Button("Generate") { let opts = RandomStringOptions(length: length, uppercase: uppercase, lowercase: lowercase, digits: digits, special: special); output = RandomStringGenerator.generateBatch(batchCount, options: opts).joined(separator: "\n") }.buttonStyle(.borderedProminent)
                 CopyButton(text: output)
             }
-            TextEditor(text: .constant(output)).font(.system(.body, design: .monospaced)).scrollContentBackground(.hidden).padding(10).background(.background.secondary).clipShape(RoundedRectangle(cornerRadius: 10)).overlay(RoundedRectangle(cornerRadius: 10).stroke(.quaternary, lineWidth: 1))
+            TextEditor(text: .constant(output)).font(.system(.body, design: .monospaced)).scrollContentBackground(.hidden).padding(10).background(.fill.tertiary).clipShape(RoundedRectangle(cornerRadius: 8)).overlay(RoundedRectangle(cornerRadius: 8).stroke(.separator, lineWidth: 0.5))
         }.padding(20)
     }
 }

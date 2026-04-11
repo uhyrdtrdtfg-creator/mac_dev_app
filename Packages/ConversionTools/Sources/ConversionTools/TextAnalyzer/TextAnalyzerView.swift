@@ -8,8 +8,8 @@ public struct TextAnalyzerView: View {
     public var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             VStack(alignment: .leading, spacing: 4) {
-                Text("Text Analyzer").font(.title2).fontWeight(.bold)
-                Text("Count characters, words, lines, sentences, and more").font(.subheadline).foregroundStyle(.secondary)
+                Text("Text Analyzer").font(.title3).fontWeight(.semibold)
+                Text("Count characters, words, lines, sentences, and more").font(.caption).foregroundStyle(.tertiary)
             }
             HStack(spacing: 20) {
                 statCard("Characters", "\(stats.characters)")
@@ -24,9 +24,9 @@ public struct TextAnalyzerView: View {
                 .font(.system(.body, design: .monospaced))
                 .scrollContentBackground(.hidden)
                 .padding(10)
-                .background(.background.secondary)
-                .clipShape(RoundedRectangle(cornerRadius: 10))
-                .overlay(RoundedRectangle(cornerRadius: 10).stroke(.quaternary, lineWidth: 1))
+                .background(.fill.tertiary)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .overlay(RoundedRectangle(cornerRadius: 8).stroke(.separator, lineWidth: 0.5))
         }
         .padding(20)
         .onChange(of: input) { _, _ in stats = TextAnalyzer.analyze(input) }
@@ -39,7 +39,7 @@ public struct TextAnalyzerView: View {
         }
         .frame(minWidth: 70)
         .padding(10)
-        .background(.background.secondary)
+        .background(.fill.tertiary)
         .clipShape(RoundedRectangle(cornerRadius: 10))
     }
 }

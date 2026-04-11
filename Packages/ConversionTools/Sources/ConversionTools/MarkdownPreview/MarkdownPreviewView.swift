@@ -97,11 +97,11 @@ public struct MarkdownPreviewView: View {
         VStack(alignment: .leading, spacing: 16) {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Markdown Preview")
-                    .font(.title2)
-                    .fontWeight(.bold)
+                    .font(.title3)
+                    .fontWeight(.semibold)
                 Text("Write Markdown on the left, see rendered preview on the right")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
             }
             .padding(.horizontal, 20)
             .padding(.top, 20)
@@ -121,9 +121,9 @@ public struct MarkdownPreviewView: View {
                         .font(.system(.body, design: .monospaced))
                         .scrollContentBackground(.hidden)
                         .padding(10)
-                        .background(.background.secondary)
-                        .clipShape(RoundedRectangle(cornerRadius: 10))
-                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(.quaternary, lineWidth: 1))
+                        .background(.fill.tertiary)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(.separator, lineWidth: 0.5))
                 }
 
                 // Preview
@@ -138,7 +138,7 @@ public struct MarkdownPreviewView: View {
                     }
                     MarkdownWebView(html: renderedHTML)
                         .clipShape(RoundedRectangle(cornerRadius: 10))
-                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(.quaternary, lineWidth: 1))
+                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(.separator, lineWidth: 0.5))
                 }
             }
             .padding(.horizontal, 20)

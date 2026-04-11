@@ -8,12 +8,12 @@ public struct StringCaseConverterView: View {
     public var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             VStack(alignment: .leading, spacing: 4) {
-                Text("String Case Converter").font(.title2).fontWeight(.bold)
-                Text("Convert between camelCase, snake_case, PascalCase, and more").font(.subheadline).foregroundStyle(.secondary)
+                Text("String Case Converter").font(.title3).fontWeight(.semibold)
+                Text("Convert between camelCase, snake_case, PascalCase, and more").font(.caption).foregroundStyle(.tertiary)
             }
             TextField("Enter text to convert...", text: $input)
                 .font(.system(.title3, design: .monospaced))
-                .textFieldStyle(.plain).padding(10).background(.background.secondary).clipShape(RoundedRectangle(cornerRadius: 10)).overlay(RoundedRectangle(cornerRadius: 10).stroke(.quaternary, lineWidth: 1))
+                .textFieldStyle(.plain).padding(10).background(.fill.tertiary).clipShape(RoundedRectangle(cornerRadius: 8)).overlay(RoundedRectangle(cornerRadius: 8).stroke(.separator, lineWidth: 0.5))
             VStack(alignment: .leading, spacing: 8) {
                 ForEach(StringCase.allCases) { sc in
                     HStack {
@@ -21,7 +21,7 @@ public struct StringCaseConverterView: View {
                         Text(results[sc] ?? "").font(.system(.body, design: .monospaced)).textSelection(.enabled)
                         Spacer()
                         if let val = results[sc], !val.isEmpty { CopyButton(text: val) }
-                    }.padding(10).background(.background.secondary).clipShape(RoundedRectangle(cornerRadius: 8))
+                    }.padding(10).background(.fill.tertiary).clipShape(RoundedRectangle(cornerRadius: 8))
                 }
             }
         }.padding(20)

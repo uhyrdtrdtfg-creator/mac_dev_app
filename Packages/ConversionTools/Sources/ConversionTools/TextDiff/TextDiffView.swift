@@ -15,11 +15,11 @@ public struct TextDiffView: View {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Text Diff")
-                        .font(.title2)
-                        .fontWeight(.bold)
+                        .font(.title3)
+                        .fontWeight(.semibold)
                     Text("Paste text in both panels — differences highlight below")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
                 }
                 Spacer()
                 if let stats {
@@ -57,7 +57,7 @@ public struct TextDiffView: View {
                         CopyButton(text: leftText)
                     }
                     .padding(.horizontal, 12).padding(.vertical, 6)
-                    .background(.background.secondary)
+                    .background(.fill.tertiary)
                     Divider()
                     TextEditor(text: $leftText)
                         .font(.system(.body, design: .monospaced))
@@ -76,7 +76,7 @@ public struct TextDiffView: View {
                         CopyButton(text: rightText)
                     }
                     .padding(.horizontal, 12).padding(.vertical, 6)
-                    .background(.background.secondary)
+                    .background(.fill.tertiary)
                     Divider()
                     TextEditor(text: $rightText)
                         .font(.system(.body, design: .monospaced))

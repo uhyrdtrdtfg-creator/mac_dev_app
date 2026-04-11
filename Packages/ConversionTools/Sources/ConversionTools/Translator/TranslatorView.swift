@@ -20,11 +20,11 @@ public struct TranslatorView: View {
         VStack(alignment: .leading, spacing: 16) {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Translator")
-                    .font(.title2)
-                    .fontWeight(.bold)
+                    .font(.title3)
+                    .fontWeight(.semibold)
                 Text("Auto-detect language and translate using Microsoft Translator (free, no API key)")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
             }
 
             // Language selectors
@@ -103,9 +103,9 @@ public struct TranslatorView: View {
                         .font(.system(.body))
                         .scrollContentBackground(.hidden)
                         .padding(10)
-                        .background(.background.secondary)
-                        .clipShape(RoundedRectangle(cornerRadius: 10))
-                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(.quaternary, lineWidth: 1))
+                        .background(.fill.tertiary)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(.separator, lineWidth: 0.5))
                 }
 
                 Image(systemName: "arrow.right")
@@ -123,9 +123,9 @@ public struct TranslatorView: View {
                         .font(.system(.body))
                         .scrollContentBackground(.hidden)
                         .padding(10)
-                        .background(.background.secondary)
-                        .clipShape(RoundedRectangle(cornerRadius: 10))
-                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(.quaternary, lineWidth: 1))
+                        .background(.fill.tertiary)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(.separator, lineWidth: 0.5))
                 }
             }
         }
