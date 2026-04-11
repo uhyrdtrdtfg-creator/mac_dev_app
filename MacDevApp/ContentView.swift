@@ -12,7 +12,7 @@ struct ContentView: View {
             SidebarView(registry: registry)
         } detail: {
             if let toolID = registry.selectedToolID {
-                if toolID == "http-client" || toolID == "markdown-preview" || toolID == "text-diff" {
+                if toolID == "http-client" || toolID == "markdown-preview" || toolID == "text-diff" || toolID == "websocket-sse" || toolID == "mock-server" {
                     toolView(for: toolID)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
@@ -40,6 +40,8 @@ struct ContentView: View {
             RSACryptorView.descriptor,
             // API Client
             APIClientView.descriptor,
+            WebSocketClientView.descriptor,
+            MockServerView.descriptor,
             // Conversion
             TimestampConverterView.descriptor,
             URLCodecView.descriptor,
@@ -71,6 +73,8 @@ struct ContentView: View {
         case "aes-cryptor": AESCryptorView()
         case "rsa-cryptor": RSACryptorView()
         case "http-client": APIClientView()
+        case "websocket-sse": WebSocketClientView()
+        case "mock-server": MockServerView()
         case "timestamp-converter": TimestampConverterView()
         case "url-codec": URLCodecView()
         case "base64-codec": Base64CodecView()
