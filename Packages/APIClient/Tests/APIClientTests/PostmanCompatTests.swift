@@ -88,3 +88,21 @@ import Foundation
     #expect(result.logs.contains { $0.message == "encoded: SGVsbG8sIFdvcmxkIQ==" })
     #expect(result.logs.contains { $0.message == "decoded: Hello, World!" })
 }
+
+@Test func pmVariablesReplaceIn() {
+    let ctx = ScriptContext(requestMethod: "GET", requestURL: "https://example.com", requestHeaders: [:])
+    let script = """
+    pm.variables.set("host", "api.example.com");
+    pm.variables.set("token", "abc123");
+    var url = pm.variables.replaceIn("https://{{host}}/users?token={{token}}");
+    console.log("url: " + url);
+    var hasHost = pm.variables.has("host");
+    console.log("hasHost: " + hasHost);
+    var hostVal = pm.variables.get("host");
+    console.log("hostVal: " + hostVal);
+    """
+    let result = ScriptEngine.runPreScriptCompat(script, context: ctx)
+    #expect(result.logs.contains { $0.message == "url: https://api.example.com/users?token=abc123" })
+    #expect(result.logs.contains { $0.message == "hasHost: true" })
+    #expect(result.logs.contains { $0.message == "hostVal: api.example.com" })
+}

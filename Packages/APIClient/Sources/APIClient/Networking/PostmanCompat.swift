@@ -426,9 +426,36 @@ public enum PostmanCompat {
         pmRequest.setObject(pmHeaders, forKeyedSubscript: "headers" as NSString)
         pmRequest.setObject(pmUrl, forKeyedSubscript: "url" as NSString)
 
+        // pm.variables — mirrors pm.environment but adds replaceIn()
+        let pmVariables = JSValue(newObjectIn: ctx)!
+        pmVariables.setObject(envGet, forKeyedSubscript: "get" as NSString)
+        pmVariables.setObject(envSet, forKeyedSubscript: "set" as NSString)
+        pmVariables.setObject(envUnset, forKeyedSubscript: "unset" as NSString)
+        pmVariables.setObject(envHas, forKeyedSubscript: "has" as NSString)
+
+        // pm.variables.replaceIn — replaces {{variableName}} with values from envStore
+        let replaceIn: @convention(block) (String) -> String = { template in
+            var result = template
+            let pattern = "\\{\\{([^}]+)\\}\\}"
+            guard let regex = try? NSRegularExpression(pattern: pattern) else { return template }
+            let range = NSRange(template.startIndex..., in: template)
+            let matches = regex.matches(in: template, range: range)
+            // Process in reverse to preserve indices
+            for match in matches.reversed() {
+                guard let fullRange = Range(match.range, in: result),
+                      let keyRange = Range(match.range(at: 1), in: result) else { continue }
+                let key = String(result[keyRange])
+                let value = envStore.get(key) ?? ""
+                result.replaceSubrange(fullRange, with: value)
+            }
+            return result
+        }
+        pmVariables.setObject(replaceIn, forKeyedSubscript: "replaceIn" as NSString)
+
         // pm
         let pm = JSValue(newObjectIn: ctx)!
         pm.setObject(pmEnv, forKeyedSubscript: "environment" as NSString)
+        pm.setObject(pmVariables, forKeyedSubscript: "variables" as NSString)
         pm.setObject(pmRequest, forKeyedSubscript: "request" as NSString)
 
         // pm.response (for post-scripts)
