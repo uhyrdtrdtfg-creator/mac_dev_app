@@ -427,11 +427,25 @@ public enum PostmanCompat {
         pmRequest.setObject(pmUrl, forKeyedSubscript: "url" as NSString)
 
         // pm.variables — mirrors pm.environment but adds replaceIn()
+        // Create separate blocks for pm.variables (reusing same block can cause lifecycle issues)
+        let varGet: @convention(block) (String) -> String = { key in
+            envStore.get(key) ?? ""
+        }
+        let varSet: @convention(block) (String, String) -> Void = { key, value in
+            envStore.set(key, value)
+        }
+        let varUnset: @convention(block) (String) -> Void = { key in
+            envStore.remove(key)
+        }
+        let varHas: @convention(block) (String) -> Bool = { key in
+            envStore.get(key) != nil
+        }
+
         let pmVariables = JSValue(newObjectIn: ctx)!
-        pmVariables.setObject(envGet, forKeyedSubscript: "get" as NSString)
-        pmVariables.setObject(envSet, forKeyedSubscript: "set" as NSString)
-        pmVariables.setObject(envUnset, forKeyedSubscript: "unset" as NSString)
-        pmVariables.setObject(envHas, forKeyedSubscript: "has" as NSString)
+        pmVariables.setObject(varGet, forKeyedSubscript: "get" as NSString)
+        pmVariables.setObject(varSet, forKeyedSubscript: "set" as NSString)
+        pmVariables.setObject(varUnset, forKeyedSubscript: "unset" as NSString)
+        pmVariables.setObject(varHas, forKeyedSubscript: "has" as NSString)
 
         // pm.variables.replaceIn — replaces {{variableName}} with values from envStore
         let replaceIn: @convention(block) (String) -> String = { template in
