@@ -394,10 +394,12 @@ public enum PostmanCompat {
         let pmHeaders = JSValue(newObjectIn: ctx)!
         pmHeaders.setObject(headerUpsert, forKeyedSubscript: "upsert" as NSString)
 
-        // pm.request.url.query — parse real query params from URL
+        // pm.request.url — full Postman-compatible URL object
+        let urlComps = URLComponents(string: context.requestURL)
+
+        // pm.request.url.query
         let queryItems: [(String, String)] = {
-            guard let comps = URLComponents(string: context.requestURL),
-                  let items = comps.queryItems else { return [] }
+            guard let comps = urlComps, let items = comps.queryItems else { return [] }
             return items.compactMap { item in
                 guard let value = item.value, !item.name.isEmpty else { return nil }
                 return (item.name, value)
@@ -417,11 +419,43 @@ public enum PostmanCompat {
         queryObj.setObject(queryCount, forKeyedSubscript: "count" as NSString)
         queryObj.setObject(queryEach, forKeyedSubscript: "each" as NSString)
 
+        // pm.request.url.path — array of path segments (Postman style)
+        let pathSegments: [String] = {
+            guard let comps = urlComps else { return [] }
+            let pathStr = comps.path
+            // Split by "/" and filter empty segments
+            return pathStr.split(separator: "/", omittingEmptySubsequences: true).map(String.init)
+        }()
+
+        let pathArray = JSValue(newArrayIn: ctx)!
+        for (index, segment) in pathSegments.enumerated() {
+            pathArray.setObject(segment, atIndexedSubscript: index)
+        }
+
+        // pm.request.url object with toString() method
+        let requestURL = context.requestURL
         let pmUrl = JSValue(newObjectIn: ctx)!
         pmUrl.setObject(queryObj, forKeyedSubscript: "query" as NSString)
+        pmUrl.setObject(pathArray, forKeyedSubscript: "path" as NSString)
+
+        // toString() returns the full URL
+        let urlToString: @convention(block) () -> String = {
+            requestURL
+        }
+        pmUrl.setObject(urlToString, forKeyedSubscript: "toString" as NSString)
+
+        // Also set protocol, host, port for completeness
+        if let comps = urlComps {
+            pmUrl.setObject(comps.scheme ?? "", forKeyedSubscript: "protocol" as NSString)
+            pmUrl.setObject(comps.host ?? "", forKeyedSubscript: "host" as NSString)
+            if let port = comps.port {
+                pmUrl.setObject(port, forKeyedSubscript: "port" as NSString)
+            }
+        }
 
         // pm.request
         let pmRequest = JSValue(newObjectIn: ctx)!
+        pmRequest.setObject(context.requestMethod, forKeyedSubscript: "method" as NSString)
         pmRequest.setObject(pmBody, forKeyedSubscript: "body" as NSString)
         pmRequest.setObject(pmHeaders, forKeyedSubscript: "headers" as NSString)
         pmRequest.setObject(pmUrl, forKeyedSubscript: "url" as NSString)

@@ -44,9 +44,19 @@ public enum RequestExecutor {
 
             // Run pre-request script
             if let preScript, !preScript.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                // Build full URL with query params for script context
+                let fullURL: String = {
+                    let enabledParams = queryParams.filter(\.isEnabled)
+                    guard !enabledParams.isEmpty, var comps = URLComponents(string: url) else { return url }
+                    let existingItems = comps.queryItems ?? []
+                    let newItems = enabledParams.map { URLQueryItem(name: $0.key, value: $0.value) }
+                    comps.queryItems = existingItems + newItems
+                    return comps.string ?? url
+                }()
+
                 var scriptCtx = ScriptContext(
                     requestMethod: method.rawValue,
-                    requestURL: url,
+                    requestURL: fullURL,
                     requestHeaders: Dictionary(uniqueKeysWithValues: headers.filter(\.isEnabled).map { ($0.key, $0.value) })
                 )
                 if case .json(let json) = body { scriptCtx.requestBody = json }

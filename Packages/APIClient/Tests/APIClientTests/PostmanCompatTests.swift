@@ -106,3 +106,30 @@ import Foundation
     #expect(result.logs.contains { $0.message == "hasHost: true" })
     #expect(result.logs.contains { $0.message == "hostVal: api.example.com" })
 }
+
+@Test func pmRequestMethodAndUrl() {
+    let ctx = ScriptContext(
+        requestMethod: "POST",
+        requestURL: "https://api.example.com/v1/users/123?name=test&age=25",
+        requestHeaders: ["Content-Type": "application/json"]
+    )
+    let script = """
+    console.log("method: " + pm.request.method);
+    console.log("url: " + pm.request.url.toString());
+    console.log("protocol: " + pm.request.url.protocol);
+    console.log("host: " + pm.request.url.host);
+    console.log("pathLength: " + pm.request.url.path.length);
+    console.log("path0: " + pm.request.url.path[0]);
+    console.log("path1: " + pm.request.url.path[1]);
+    console.log("path2: " + pm.request.url.path[2]);
+    """
+    let result = ScriptEngine.runPreScriptCompat(script, context: ctx)
+    #expect(result.logs.contains { $0.message == "method: POST" })
+    #expect(result.logs.contains { $0.message == "url: https://api.example.com/v1/users/123?name=test&age=25" })
+    #expect(result.logs.contains { $0.message == "protocol: https" })
+    #expect(result.logs.contains { $0.message == "host: api.example.com" })
+    #expect(result.logs.contains { $0.message == "pathLength: 3" })
+    #expect(result.logs.contains { $0.message == "path0: v1" })
+    #expect(result.logs.contains { $0.message == "path1: users" })
+    #expect(result.logs.contains { $0.message == "path2: 123" })
+}
