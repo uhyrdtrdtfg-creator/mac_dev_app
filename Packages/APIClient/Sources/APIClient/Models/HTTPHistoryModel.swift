@@ -23,6 +23,13 @@ public final class HTTPHistoryModel {
     // Body type info for restoration
     public var bodyType: String?  // "none", "json", "formData", "raw"
 
+    // Query params
+    public var queryParamsJSON: Data?
+
+    // Form data and raw body
+    public var formDataJSON: Data?
+    public var rawBody: String?
+
     public init(requestMethod: String, requestURL: String, responseStatus: Int, duration: TimeInterval, responseSize: Int) {
         self.id = UUID()
         self.requestMethod = requestMethod

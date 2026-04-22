@@ -44,23 +44,33 @@ struct ScriptEditorView: View {
             // Console output
             if !consoleLogs.isEmpty {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Console")
-                        .font(.caption)
-                        .fontWeight(.medium)
-                        .foregroundStyle(.secondary)
-                        .textCase(.uppercase)
+                    HStack {
+                        Text("Console")
+                            .font(.caption)
+                            .fontWeight(.medium)
+                            .foregroundStyle(.secondary)
+                            .textCase(.uppercase)
+
+                        Spacer()
+
+                        Button {
+                            let allLogs = consoleLogs.map(\.message).joined(separator: "\n")
+                            NSPasteboard.general.clearContents()
+                            NSPasteboard.general.setString(allLogs, forType: .string)
+                        } label: {
+                            Image(systemName: "doc.on.doc")
+                                .font(.caption)
+                        }
+                        .buttonStyle(.plain)
+                        .help("Copy all logs")
+                    }
 
                     ScrollView {
-                        VStack(alignment: .leading, spacing: 2) {
-                            ForEach(consoleLogs) { log in
-                                Text(log.message)
-                                    .font(.system(.caption, design: .monospaced))
-                                    .foregroundStyle(log.isError ? .red : .primary)
-                                    .textSelection(.enabled)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                            }
-                        }
-                        .padding(8)
+                        Text(consoleLogs.map(\.message).joined(separator: "\n"))
+                            .font(.system(.caption, design: .monospaced))
+                            .textSelection(.enabled)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(8)
                     }
                     .background(.black.opacity(0.05))
                     .clipShape(RoundedRectangle(cornerRadius: 6))

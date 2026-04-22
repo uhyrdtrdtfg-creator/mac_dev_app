@@ -33,6 +33,7 @@ final class UpdaterManager {
 @main
 struct MacDevAppApp: App {
     private let updaterManager = UpdaterManager()
+    private let modelContainer: ModelContainer
 
     init() {
         // Disable smart quotes/dashes globally — critical for a developer tool
@@ -43,9 +44,8 @@ struct MacDevAppApp: App {
         UserDefaults.standard.set(false, forKey: "NSAutomaticTextCompletionEnabled")
 
         updaterManager.start()
-    }
 
-    var sharedModelContainer: ModelContainer = {
+        // Configure SwiftData with iCloud sync
         let schema = Schema([
             HTTPRequestModel.self,
             HTTPCollectionModel.self,
@@ -56,21 +56,20 @@ struct MacDevAppApp: App {
         ])
         let config = ModelConfiguration(
             schema: schema,
-            isStoredInMemoryOnly: false,
             cloudKitDatabase: .automatic
         )
         do {
-            return try ModelContainer(for: schema, configurations: [config])
+            modelContainer = try ModelContainer(for: schema, configurations: [config])
         } catch {
-            fatalError("Could not create ModelContainer: \(error)")
+            fatalError("Failed to create ModelContainer: \(error)")
         }
-    }()
+    }
 
     var body: some Scene {
         WindowGroup {
             ContentView()
         }
-        .modelContainer(sharedModelContainer)
+        .modelContainer(modelContainer)
         .windowStyle(.automatic)
         .defaultSize(width: 1100, height: 750)
     }

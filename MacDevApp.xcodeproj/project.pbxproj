@@ -22,13 +22,14 @@
 /* Begin PBXFileReference section */
 		02E1C06628B8BDA10F824E4B /* SidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarView.swift; sourceTree = "<group>"; };
 		12930FBF61F663189B00F108 /* MacDevAppApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacDevAppApp.swift; sourceTree = "<group>"; };
+		1D1046D82F98BE2300364882 /* MacDevAppRelease.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = MacDevAppRelease.entitlements; sourceTree = "<group>"; };
 		3A7560D3064F0BB5D09A8369 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		3F706069CE7F18A563EE0C51 /* ToolRegistry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolRegistry.swift; sourceTree = "<group>"; };
 		416716C1D6CE01CEC7F1B54A /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		69CCE1504D3EB106B6843F2E /* DevAppCore */ = {isa = PBXFileReference; lastKnownFileType = folder; name = DevAppCore; path = Packages/DevAppCore; sourceTree = SOURCE_ROOT; };
 		85631AA68C1015BA40C866C6 /* CryptoTools */ = {isa = PBXFileReference; lastKnownFileType = folder; name = CryptoTools; path = Packages/CryptoTools; sourceTree = SOURCE_ROOT; };
 		8735535E3603F195334E2057 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
-		AF5E3409A2C10A159200986C /* MacDevApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MacDevApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		AF5E3409A2C10A159200986C /* DevToolkit.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = DevToolkit.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		B6A6BFC4E38853FF311C2064 /* ConversionTools */ = {isa = PBXFileReference; lastKnownFileType = folder; name = ConversionTools; path = Packages/ConversionTools; sourceTree = SOURCE_ROOT; };
 		D379F33ACF26F897EA64A046 /* APIClient */ = {isa = PBXFileReference; lastKnownFileType = folder; name = APIClient; path = Packages/APIClient; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
@@ -52,7 +53,7 @@
 		1EBEC6D3624C294F8079408A /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				AF5E3409A2C10A159200986C /* MacDevApp.app */,
+				AF5E3409A2C10A159200986C /* DevToolkit.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -60,6 +61,7 @@
 		378FC95743AD29A68247DC07 /* MacDevApp */ = {
 			isa = PBXGroup;
 			children = (
+				1D1046D82F98BE2300364882 /* MacDevAppRelease.entitlements */,
 				8735535E3603F195334E2057 /* Assets.xcassets */,
 				416716C1D6CE01CEC7F1B54A /* ContentView.swift */,
 				3A7560D3064F0BB5D09A8369 /* Info.plist */,
@@ -122,7 +124,7 @@
 				42E07871FD70E8ADD1391DD0 /* Sparkle */,
 			);
 			productName = MacDevApp;
-			productReference = AF5E3409A2C10A159200986C /* MacDevApp.app */;
+			productReference = AF5E3409A2C10A159200986C /* DevToolkit.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -133,8 +135,6 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1600;
-				TargetAttributes = {
-				};
 			};
 			buildConfigurationList = 78886CA03A32C34ED44A9D9D /* Build configuration list for PBXProject "MacDevApp" */;
 			developmentRegion = en;
@@ -192,8 +192,12 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = MacDevApp/MacDevAppRelease.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 4257SFGRFK;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = MacDevApp/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -201,9 +205,10 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 1.0.0;
+				MARKETING_VERSION = 1.2.5;
 				PRODUCT_BUNDLE_IDENTIFIER = com.macdevapp.MacDevApp;
 				PRODUCT_NAME = DevToolkit;
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = macosx;
 				SWIFT_VERSION = 6.0;
 			};
@@ -213,8 +218,11 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 4257SFGRFK;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = MacDevApp/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -222,9 +230,10 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 1.0.0;
+				MARKETING_VERSION = 1.2.5;
 				PRODUCT_BUNDLE_IDENTIFIER = com.macdevapp.MacDevApp;
 				PRODUCT_NAME = DevToolkit;
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = macosx;
 				SWIFT_VERSION = 6.0;
 			};

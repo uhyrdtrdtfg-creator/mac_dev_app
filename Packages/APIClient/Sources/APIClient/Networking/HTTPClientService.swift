@@ -24,6 +24,19 @@ public struct HTTPResponse: Sendable, Equatable {
 }
 
 public enum HTTPClientService {
+    /// Enable debug logging - can be toggled at runtime
+    public nonisolated(unsafe) static var debugEnabled: Bool = false
+
+    /// Custom URLSession configured for compatibility with various servers
+    private static let session: URLSession = {
+        let config = URLSessionConfiguration.default
+        // Configure for better compatibility
+        config.httpAdditionalHeaders = ["Connection": "keep-alive"]
+        config.httpShouldUsePipelining = false
+        config.httpMaximumConnectionsPerHost = 1
+        return URLSession(configuration: config)
+    }()
+
     public static func buildURLRequest(method: HTTPMethod, url: String, headers: [KeyValuePair], queryParams: [KeyValuePair], body: RequestBody?, auth: AuthType?) throws -> URLRequest {
         guard var components = URLComponents(string: url), !url.isEmpty else { throw HTTPClientError.invalidURL }
 
@@ -78,15 +91,66 @@ public enum HTTPClientService {
         return request
     }
 
+    private static func log(_ message: String, _ args: CVarArg...) {
+        guard debugEnabled else { return }
+        withVaList(args) { NSLogv("[HTTPClient] " + message, $0) }
+    }
+
     public static func send(_ request: URLRequest) async throws -> HTTPResponse {
+        // Debug logging (only when enabled)
+        log("URL: %@", request.url?.absoluteString ?? "nil")
+        log("Method: %@", request.httpMethod ?? "nil")
+        log("Headers: %@", String(describing: request.allHTTPHeaderFields ?? [:]))
+        if let body = request.httpBody {
+            log("Body size: %d bytes", body.count)
+            if let bodyStr = String(data: body, encoding: .utf8) {
+                log("Body: %@", bodyStr)
+            }
+        } else {
+            log("No body")
+        }
+
+        var mutableRequest = request
+        mutableRequest.httpShouldUsePipelining = false
+
+        // Use download task to avoid "resource exceeds maximum size" error
         let start = Date()
-        let (data, response) = try await URLSession.shared.data(for: request)
-        let duration = Date().timeIntervalSince(start)
-        guard let httpResponse = response as? HTTPURLResponse else { throw HTTPClientError.noResponse }
-        let headers: [String: String] = Dictionary(uniqueKeysWithValues: httpResponse.allHeaderFields.compactMap { key, value -> (String, String)? in
-            guard let k = key as? String, let v = value as? String else { return nil }; return (k, v)
-        })
-        let cookies = (headers["Set-Cookie"] ?? "").split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
-        return HTTPResponse(statusCode: httpResponse.statusCode, headers: headers, body: data, duration: duration, bodySize: data.count, cookies: cookies)
+        let isDebug = debugEnabled
+        return try await withCheckedThrowingContinuation { continuation in
+            let task = session.downloadTask(with: mutableRequest) { localURL, response, error in
+                let duration = Date().timeIntervalSince(start)
+
+                if let error = error {
+                    if isDebug { NSLog("[HTTPClient] Download error: %@", String(describing: error)) }
+                    continuation.resume(throwing: error)
+                    return
+                }
+
+                guard let httpResponse = response as? HTTPURLResponse else {
+                    continuation.resume(throwing: HTTPClientError.noResponse)
+                    return
+                }
+
+                if isDebug { NSLog("[HTTPClient] Response status: %d", httpResponse.statusCode) }
+
+                var data = Data()
+                if let localURL = localURL {
+                    do {
+                        data = try Data(contentsOf: localURL)
+                    } catch {
+                        if isDebug { NSLog("[HTTPClient] Failed to read downloaded file: %@", String(describing: error)) }
+                    }
+                }
+
+                let headers: [String: String] = Dictionary(uniqueKeysWithValues: httpResponse.allHeaderFields.compactMap { key, value -> (String, String)? in
+                    guard let k = key as? String, let v = value as? String else { return nil }; return (k, v)
+                })
+                let cookies = (headers["Set-Cookie"] ?? "").split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+
+                let result = HTTPResponse(statusCode: httpResponse.statusCode, headers: headers, body: data, duration: duration, bodySize: data.count, cookies: cookies)
+                continuation.resume(returning: result)
+            }
+            task.resume()
+        }
     }
 }

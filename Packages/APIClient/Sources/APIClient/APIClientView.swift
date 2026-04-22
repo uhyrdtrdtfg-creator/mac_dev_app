@@ -38,6 +38,7 @@ public struct APIClientView: View {
     @State private var rewriteScriptLogs: [ScriptConsoleOutput] = []
     @State private var showChains = false
     @State private var selectedChain: ChainModel?
+    @State private var debugMode = false
 
     public init() {}
 
@@ -45,6 +46,16 @@ public struct APIClientView: View {
         VStack(alignment: .leading, spacing: 0) {
             // Toolbar
             HStack(spacing: 8) {
+                Toggle(isOn: $debugMode) {
+                    Image(systemName: "ladybug")
+                        .font(.caption)
+                }
+                .toggleStyle(.button)
+                .help("Debug Mode")
+                .onChange(of: debugMode) { _, newValue in
+                    HTTPClientService.debugEnabled = newValue
+                }
+
                 Spacer()
 
                 Button {
@@ -283,9 +294,20 @@ public struct APIClientView: View {
             httpResponse.headers.map { KeyValuePair(key: $0.key, value: $0.value) }
         )
         history.requestHeadersJSON = try? JSONEncoder().encode(headers)
-        if case .json(let json) = RequestBody.json(jsonBody) {
-            history.requestBodyJSON = json.data(using: .utf8)
+        history.queryParamsJSON = try? JSONEncoder().encode(queryParams)
+
+        // Save body based on type
+        switch bodyType {
+        case .none:
+            break
+        case .json:
+            history.requestBodyJSON = jsonBody.data(using: .utf8)
+        case .formData:
+            history.formDataJSON = try? JSONEncoder().encode(formDataPairs)
+        case .raw:
+            history.rawBody = rawBody
         }
+
         // Save scripts
         history.preScript = preScript.isEmpty ? nil : preScript
         history.postScript = postScript.isEmpty ? nil : postScript
@@ -297,23 +319,61 @@ public struct APIClientView: View {
     private func restoreFromHistory(_ item: HTTPHistoryModel) {
         method = HTTPMethod(rawValue: item.requestMethod) ?? .get
         url = item.requestURL
+
+        // Restore headers
         if let data = item.requestHeadersJSON,
            let decoded = try? JSONDecoder().decode([KeyValuePair].self, from: data) {
             headers = decoded
+        } else {
+            headers = [KeyValuePair()]
         }
-        if let data = item.requestBodyJSON, let body = String(data: data, encoding: .utf8) {
-            jsonBody = body
-            bodyType = .json
+
+        // Restore query params
+        if let data = item.queryParamsJSON,
+           let decoded = try? JSONDecoder().decode([KeyValuePair].self, from: data) {
+            queryParams = decoded
+        } else {
+            queryParams = [KeyValuePair()]
         }
+
+        // Restore body type and content
         if let bt = item.bodyType, let t = BodyType(rawValue: bt) {
             bodyType = t
+            switch t {
+            case .none:
+                jsonBody = ""
+                formDataPairs = [KeyValuePair()]
+                rawBody = ""
+            case .json:
+                if let data = item.requestBodyJSON, let body = String(data: data, encoding: .utf8) {
+                    jsonBody = body
+                }
+                formDataPairs = [KeyValuePair()]
+                rawBody = ""
+            case .formData:
+                if let data = item.formDataJSON,
+                   let decoded = try? JSONDecoder().decode([KeyValuePair].self, from: data) {
+                    formDataPairs = decoded
+                }
+                jsonBody = ""
+                rawBody = ""
+            case .raw:
+                rawBody = item.rawBody ?? ""
+                jsonBody = ""
+                formDataPairs = [KeyValuePair()]
+            }
+        } else {
+            bodyType = .none
         }
+
         // Restore scripts
         preScript = item.preScript ?? ""
         postScript = item.postScript ?? ""
         rewriteScript = item.rewriteScript ?? ""
+
         response = nil
         errorMessage = nil
+        consoleLogs = []
     }
 
     private func clearHistory() {

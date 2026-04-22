@@ -36,11 +36,18 @@ public enum RequestExecutor {
         var consoleLogs: [ScriptConsoleOutput] = []
         var assertionFailed = false
 
+        // Debug info will appear in console logs and system log
+        NSLog("[RequestExecutor] Starting execute, URL: %@", url)
+        NSLog("[RequestExecutor] QueryParams count: %d", queryParams.count)
+        consoleLogs.append(ScriptConsoleOutput(message: "[DEBUG] Starting execute, URL: \(url)"))
+        consoleLogs.append(ScriptConsoleOutput(message: "[DEBUG] QueryParams count: \(queryParams.count)"))
+
         do {
             var request = try HTTPClientService.buildURLRequest(
                 method: method, url: url, headers: headers,
                 queryParams: queryParams, body: body, auth: auth
             )
+            consoleLogs.append(ScriptConsoleOutput(message: "[DEBUG] Initial request URL: \(request.url?.absoluteString ?? "nil")"))
 
             // Run pre-request script
             if let preScript, !preScript.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -61,10 +68,14 @@ public enum RequestExecutor {
                 )
                 if case .json(let json) = body { scriptCtx.requestBody = json }
 
+                consoleLogs.append(ScriptConsoleOutput(message: "[DEBUG] Script context URL: \(fullURL)"))
                 let preResult = ScriptEngine.runPreScriptCompat(preScript, context: scriptCtx)
                 consoleLogs.append(contentsOf: preResult.logs)
 
                 let updatedCtx = preResult.context
+                consoleLogs.append(ScriptConsoleOutput(message: "[DEBUG] After script - URL: \(updatedCtx.requestURL)"))
+                consoleLogs.append(ScriptConsoleOutput(message: "[DEBUG] After script - Headers count: \(updatedCtx.requestHeaders.count)"))
+
                 let updatedMethod = HTTPMethod(rawValue: updatedCtx.requestMethod) ?? method
                 let updatedHeaders = updatedCtx.requestHeaders.map { KeyValuePair(key: $0.key, value: $0.value) }
                 let updatedBody: RequestBody? = updatedCtx.requestBody.map { .json($0) } ?? body
@@ -73,6 +84,7 @@ public enum RequestExecutor {
                     headers: updatedHeaders, queryParams: [],
                     body: updatedBody, auth: nil
                 )
+                consoleLogs.append(ScriptConsoleOutput(message: "[DEBUG] After rebuild - URL: \(request.url?.absoluteString ?? "nil")"))
             }
 
             // Resolve {{variable}} templates AFTER pre-script
@@ -99,6 +111,8 @@ public enum RequestExecutor {
             }
 
             // Send
+            consoleLogs.append(ScriptConsoleOutput(message: "[DEBUG] Final URL: \(request.url?.absoluteString ?? "nil")"))
+            consoleLogs.append(ScriptConsoleOutput(message: "[DEBUG] Final headers: \(request.allHTTPHeaderFields?.keys.joined(separator: ", ") ?? "none")"))
             let httpResponse = try await HTTPClientService.send(request)
 
             // Run post-request script
@@ -158,6 +172,12 @@ public enum RequestExecutor {
             )
 
         } catch {
+            NSLog("[RequestExecutor] ERROR: %@", String(describing: error))
+            consoleLogs.append(ScriptConsoleOutput(message: "[DEBUG] ERROR: \(error)"))
+            if let urlError = error as? URLError {
+                NSLog("[RequestExecutor] URLError code: %d", urlError.code.rawValue)
+                consoleLogs.append(ScriptConsoleOutput(message: "[DEBUG] URLError code: \(urlError.code.rawValue)"))
+            }
             return ExecutionResult(
                 response: nil,
                 error: error.localizedDescription,
