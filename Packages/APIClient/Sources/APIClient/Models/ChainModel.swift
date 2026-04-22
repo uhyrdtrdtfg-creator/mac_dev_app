@@ -3,9 +3,9 @@ import SwiftData
 
 @Model
 public final class ChainStepModel {
-    public var id: UUID
-    public var order: Int
-    public var savedRequestId: UUID
+    public var id: UUID = UUID()
+    public var order: Int = 0
+    public var savedRequestId: UUID = UUID()
     public var variablesJSON: Data?
     @Relationship public var chain: ChainModel?
 
@@ -27,12 +27,12 @@ public final class ChainStepModel {
 
 @Model
 public final class ChainModel {
-    public var id: UUID
-    public var name: String
+    public var id: UUID = UUID()
+    public var name: String = ""
     @Relationship(deleteRule: .cascade, inverse: \ChainStepModel.chain)
-    public var steps: [ChainStepModel]
-    public var createdAt: Date
-    public var updatedAt: Date
+    public var steps: [ChainStepModel] = []
+    public var createdAt: Date = Date()
+    public var updatedAt: Date = Date()
 
     public init(name: String) {
         self.id = UUID()

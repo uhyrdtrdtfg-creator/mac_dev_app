@@ -3,19 +3,19 @@ import SwiftData
 
 @Model
 public final class SavedRequestModel {
-    public var id: UUID
-    public var name: String
-    public var tags: String  // comma-separated tags, e.g. "auth,production,v2"
-    public var method: String
-    public var url: String
+    public var id: UUID = UUID()
+    public var name: String = ""
+    public var tags: String = ""  // comma-separated tags, e.g. "auth,production,v2"
+    public var method: String = "GET"
+    public var url: String = ""
     public var headersJSON: Data?
     public var bodyJSON: Data?
     public var bodyType: String?
     public var preScript: String?
     public var postScript: String?
     public var rewriteScript: String?
-    public var createdAt: Date
-    public var updatedAt: Date
+    public var createdAt: Date = Date()
+    public var updatedAt: Date = Date()
 
     public init(name: String, method: String = "GET", url: String = "") {
         self.id = UUID()

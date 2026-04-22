@@ -3,15 +3,15 @@ import SwiftData
 
 @Model
 public final class HTTPRequestModel {
-    public var id: UUID
-    public var name: String
-    public var method: String
-    public var url: String
+    public var id: UUID = UUID()
+    public var name: String = "New Request"
+    public var method: String = "GET"
+    public var url: String = ""
     public var headersJSON: Data?
     public var bodyJSON: Data?
     public var authJSON: Data?
     public var collection: HTTPCollectionModel?
-    public var createdAt: Date
+    public var createdAt: Date = Date()
     public var lastExecutedAt: Date?
 
     public init(name: String = "New Request", method: String = "GET", url: String = "") {

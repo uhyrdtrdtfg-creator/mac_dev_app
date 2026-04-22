@@ -3,17 +3,17 @@ import SwiftData
 
 @Model
 public final class HTTPHistoryModel {
-    public var id: UUID
-    public var requestMethod: String
-    public var requestURL: String
+    public var id: UUID = UUID()
+    public var requestMethod: String = "GET"
+    public var requestURL: String = ""
     public var requestHeadersJSON: Data?
     public var requestBodyJSON: Data?
-    public var responseStatus: Int
+    public var responseStatus: Int = 0
     public var responseBody: Data?
     public var responseHeadersJSON: Data?
-    public var duration: TimeInterval
-    public var responseSize: Int
-    public var executedAt: Date
+    public var duration: TimeInterval = 0
+    public var responseSize: Int = 0
+    public var executedAt: Date = Date()
 
     // Scripts
     public var preScript: String?

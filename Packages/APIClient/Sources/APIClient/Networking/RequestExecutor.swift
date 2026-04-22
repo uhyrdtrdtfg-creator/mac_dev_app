@@ -46,7 +46,7 @@ public enum RequestExecutor {
             if let preScript, !preScript.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 // Build full URL with query params for script context
                 let fullURL: String = {
-                    let enabledParams = queryParams.filter(\.isEnabled)
+                    let enabledParams = queryParams.filter { $0.isEnabled && !$0.key.isEmpty }
                     guard !enabledParams.isEmpty, var comps = URLComponents(string: url) else { return url }
                     let existingItems = comps.queryItems ?? []
                     let newItems = enabledParams.map { URLQueryItem(name: $0.key, value: $0.value) }
