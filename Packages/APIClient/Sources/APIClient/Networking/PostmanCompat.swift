@@ -3,8 +3,8 @@ import JavaScriptCore
 import CryptoKit
 import CCommonCryptoAPI
 
-/// Thread-safe environment variable store for pm.environment
-public final class EnvironmentStore: @unchecked Sendable {
+/// Thread-safe variable store for pm.environment, pm.globals, pm.collectionVariables
+public final class VariableStore: @unchecked Sendable {
     private var store: [String: String] = [:]
     private let lock = NSLock()
 
@@ -35,17 +35,52 @@ public final class EnvironmentStore: @unchecked Sendable {
         defer { lock.unlock() }
         return store
     }
+
+    public func merge(_ other: [String: String]) {
+        lock.lock()
+        defer { lock.unlock() }
+        store.merge(other) { _, new in new }
+    }
+
+    public func clear() {
+        lock.lock()
+        defer { lock.unlock() }
+        store.removeAll()
+    }
+}
+
+/// Alias for backward compatibility
+public typealias EnvironmentStore = VariableStore
+
+/// Singleton for global variables (pm.globals)
+public final class GlobalVariables: @unchecked Sendable {
+    public static let shared = GlobalVariables()
+    private let store = VariableStore()
+
+    private init() {}
+
+    public func get(_ key: String) -> String? { store.get(key) }
+    public func set(_ key: String, _ value: String) { store.set(key, value) }
+    public func remove(_ key: String) { store.remove(key) }
+    public func all() -> [String: String] { store.all() }
+    public func merge(_ vars: [String: String]) { store.merge(vars) }
+    public func clear() { store.clear() }
 }
 
 public enum PostmanCompat {
 
     // MARK: - Public Entry Point
 
-    public static func setup(_ jsContext: JSContext, context: ScriptContext, envStore: EnvironmentStore) {
+    public static func setup(
+        _ jsContext: JSContext,
+        context: ScriptContext,
+        envStore: EnvironmentStore,
+        collectionVariables: [String: String] = [:]
+    ) {
         setupPolyfills(jsContext)
         setupNativeCrypto(jsContext)
         setupCryptoJS(jsContext)
-        setupPm(jsContext, context: context, envStore: envStore)
+        setupPm(jsContext, context: context, envStore: envStore, collectionVariables: collectionVariables)
     }
 
     // MARK: - Browser Polyfills
@@ -111,9 +146,20 @@ public enum PostmanCompat {
             }
             return typedArray
         }
+
+        // crypto.randomUUID() - standard Web Crypto API
+        let randomUUID: @convention(block) () -> String = {
+            UUID().uuidString.lowercased()
+        }
+
         let cryptoObj = JSValue(newObjectIn: ctx)!
         cryptoObj.setObject(getRandomValues, forKeyedSubscript: "getRandomValues" as NSString)
+        cryptoObj.setObject(randomUUID, forKeyedSubscript: "randomUUID" as NSString)
         ctx.setObject(cryptoObj, forKeyedSubscript: "crypto" as NSString)
+
+        // Convenience: uuid() and generateUUID() global functions
+        ctx.setObject(randomUUID, forKeyedSubscript: "uuid" as NSString)
+        ctx.setObject(randomUUID, forKeyedSubscript: "generateUUID" as NSString)
     }
 
     // MARK: - Native Crypto (Swift-backed)
@@ -343,7 +389,7 @@ public enum PostmanCompat {
 
     // MARK: - Postman pm Object
 
-    private static func setupPm(_ ctx: JSContext, context: ScriptContext, envStore: EnvironmentStore) {
+    private static func setupPm(_ ctx: JSContext, context: ScriptContext, envStore: EnvironmentStore, collectionVariables: [String: String]) {
         // pm.environment
         let envGet: @convention(block) (String) -> String = { key in
             envStore.get(key) ?? ""
@@ -500,10 +546,58 @@ public enum PostmanCompat {
         }
         pmVariables.setObject(replaceIn, forKeyedSubscript: "replaceIn" as NSString)
 
+        // pm.globals — global variables that persist across all requests
+        let globalStore = GlobalVariables.shared
+        let globalsGet: @convention(block) (String) -> String = { key in
+            globalStore.get(key) ?? ""
+        }
+        let globalsSet: @convention(block) (String, String) -> Void = { key, value in
+            globalStore.set(key, value)
+        }
+        let globalsUnset: @convention(block) (String) -> Void = { key in
+            globalStore.remove(key)
+        }
+        let globalsHas: @convention(block) (String) -> Bool = { key in
+            globalStore.get(key) != nil
+        }
+        let globalsClear: @convention(block) () -> Void = {
+            globalStore.clear()
+        }
+
+        let pmGlobals = JSValue(newObjectIn: ctx)!
+        pmGlobals.setObject(globalsGet, forKeyedSubscript: "get" as NSString)
+        pmGlobals.setObject(globalsSet, forKeyedSubscript: "set" as NSString)
+        pmGlobals.setObject(globalsUnset, forKeyedSubscript: "unset" as NSString)
+        pmGlobals.setObject(globalsHas, forKeyedSubscript: "has" as NSString)
+        pmGlobals.setObject(globalsClear, forKeyedSubscript: "clear" as NSString)
+
+        // pm.collectionVariables — collection-scoped variables
+        let collVarStore = VariableStore(collectionVariables)
+        let collVarGet: @convention(block) (String) -> String = { key in
+            collVarStore.get(key) ?? ""
+        }
+        let collVarSet: @convention(block) (String, String) -> Void = { key, value in
+            collVarStore.set(key, value)
+        }
+        let collVarUnset: @convention(block) (String) -> Void = { key in
+            collVarStore.remove(key)
+        }
+        let collVarHas: @convention(block) (String) -> Bool = { key in
+            collVarStore.get(key) != nil
+        }
+
+        let pmCollVars = JSValue(newObjectIn: ctx)!
+        pmCollVars.setObject(collVarGet, forKeyedSubscript: "get" as NSString)
+        pmCollVars.setObject(collVarSet, forKeyedSubscript: "set" as NSString)
+        pmCollVars.setObject(collVarUnset, forKeyedSubscript: "unset" as NSString)
+        pmCollVars.setObject(collVarHas, forKeyedSubscript: "has" as NSString)
+
         // pm
         let pm = JSValue(newObjectIn: ctx)!
         pm.setObject(pmEnv, forKeyedSubscript: "environment" as NSString)
         pm.setObject(pmVariables, forKeyedSubscript: "variables" as NSString)
+        pm.setObject(pmGlobals, forKeyedSubscript: "globals" as NSString)
+        pm.setObject(pmCollVars, forKeyedSubscript: "collectionVariables" as NSString)
         pm.setObject(pmRequest, forKeyedSubscript: "request" as NSString)
 
         // pm.response (for post-scripts)

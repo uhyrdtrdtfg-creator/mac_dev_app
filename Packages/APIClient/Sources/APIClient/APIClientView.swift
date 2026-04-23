@@ -4,6 +4,7 @@ import DevAppCore
 
 public struct APIClientView: View {
     @Environment(\.modelContext) private var modelContext
+    @Query(sort: \EnvironmentModel.name) private var environments: [EnvironmentModel]
 
     @State private var method: HTTPMethod = .get
     @State private var url = ""
@@ -39,6 +40,9 @@ public struct APIClientView: View {
     @State private var showChains = false
     @State private var selectedChain: ChainModel?
     @State private var debugMode = false
+    @State private var showEnvironmentManager = false
+    @State private var selectedEnvironment: EnvironmentModel?
+    @State private var showCookieManager = false
 
     public init() {}
 
@@ -55,6 +59,40 @@ public struct APIClientView: View {
                 .onChange(of: debugMode) { _, newValue in
                     HTTPClientService.debugEnabled = newValue
                 }
+
+                // Environment picker
+                HStack(spacing: 4) {
+                    Image(systemName: "globe")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    Picker("", selection: $selectedEnvironment) {
+                        Text("No Environment").tag(nil as EnvironmentModel?)
+                        ForEach(environments) { env in
+                            Text(env.name).tag(env as EnvironmentModel?)
+                        }
+                    }
+                    .labelsHidden()
+                    .frame(width: 120)
+
+                    Button {
+                        showEnvironmentManager = true
+                    } label: {
+                        Image(systemName: "gearshape")
+                            .font(.caption)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Manage Environments")
+                }
+
+                Button {
+                    showCookieManager = true
+                } label: {
+                    Image(systemName: "shippingbox")
+                        .font(.caption)
+                }
+                .buttonStyle(.bordered)
+                .help("Cookie Manager")
 
                 Spacer()
 
@@ -226,6 +264,34 @@ public struct APIClientView: View {
                     }
                     .frame(maxWidth: .infinity)
                 }
+            }
+        }
+        .sheet(isPresented: $showEnvironmentManager) {
+            EnvironmentManagerView()
+                .frame(minWidth: 600, minHeight: 400)
+        }
+        .sheet(isPresented: $showCookieManager) {
+            CookieManagerView()
+                .frame(minWidth: 600, minHeight: 400)
+        }
+        .onChange(of: selectedEnvironment) { _, newEnv in
+            // Deactivate all environments first
+            for env in environments {
+                env.isActive = false
+            }
+            // Activate the selected one
+            if let env = newEnv {
+                env.isActive = true
+                ScriptEngine.setEnvironment(env.variables)
+            } else {
+                ScriptEngine.setEnvironment([:])
+            }
+        }
+        .onAppear {
+            // Load the active environment on appear
+            if let activeEnv = environments.first(where: { $0.isActive }) {
+                selectedEnvironment = activeEnv
+                ScriptEngine.setEnvironment(activeEnv.variables)
             }
         }
     }

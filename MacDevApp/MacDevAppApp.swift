@@ -52,7 +52,10 @@ struct MacDevAppApp: App {
             HTTPHistoryModel.self,
             SavedRequestModel.self,
             ChainModel.self,
-            ChainStepModel.self
+            ChainStepModel.self,
+            EnvironmentModel.self,
+            GlobalVariablesModel.self,
+            CookieModel.self
         ])
         let config = ModelConfiguration(
             schema: schema,
