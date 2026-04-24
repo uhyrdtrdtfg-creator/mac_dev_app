@@ -5,24 +5,10 @@ import DevAppCore
 public struct APIClientView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \EnvironmentModel.name) private var environments: [EnvironmentModel]
+    @Query(sort: \OpenTabModel.sortIndex) private var tabs: [OpenTabModel]
 
-    @State private var method: HTTPMethod = .get
-    @State private var url = ""
-    @State private var queryParams: [KeyValuePair] = [KeyValuePair()]
-    @State private var headers: [KeyValuePair] = [KeyValuePair()]
-    @State private var bodyType: BodyType = .none
-    @State private var jsonBody = ""
-    @State private var formDataPairs: [KeyValuePair] = [KeyValuePair()]
-    @State private var rawBody = ""
-    @State private var authMethod: AuthMethod = .none
-    @State private var bearerToken = ""
-    @State private var basicUsername = ""
-    @State private var basicPassword = ""
-    @State private var apiKeyName = ""
-    @State private var apiKeyValue = ""
-    @State private var apiKeyLocation: APIKeyLocation = .header
-    @State private var preScript = ""
-    @State private var postScript = ""
+    @State private var activeTabID: UUID?
+
     @State private var consoleLogs: [ScriptConsoleOutput] = []
     @State private var response: HTTPResponse?
     @State private var errorMessage: String?
@@ -35,7 +21,6 @@ public struct APIClientView: View {
     @State private var showSaveDialog = false
     @State private var saveRequestName = ""
     @State private var saveRequestTags = ""
-    @State private var rewriteScript = ""
     @State private var rewriteScriptLogs: [ScriptConsoleOutput] = []
     @State private var showChains = false
     @State private var selectedChain: ChainModel?
@@ -46,208 +31,71 @@ public struct APIClientView: View {
 
     public init() {}
 
+    private var activeTab: OpenTabModel? {
+        if let id = activeTabID, let t = tabs.first(where: { $0.id == id }) { return t }
+        return tabs.first
+    }
+
     public var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // Toolbar
-            HStack(spacing: 8) {
-                Toggle(isOn: $debugMode) {
-                    Image(systemName: "ladybug")
-                        .font(.caption)
-                }
-                .toggleStyle(.button)
-                .help("Debug Mode")
-                .onChange(of: debugMode) { _, newValue in
-                    HTTPClientService.debugEnabled = newValue
-                }
+            toolbar
 
-                // Environment picker
-                HStack(spacing: 4) {
-                    Image(systemName: "globe")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+            RequestTabBarView(
+                tabs: tabs,
+                activeTabID: activeTab?.id,
+                onSelect: { tab in selectTab(tab) },
+                onClose: { tab in closeTab(tab) },
+                onNew: { newTab() }
+            )
 
-                    Picker("", selection: $selectedEnvironment) {
-                        Text("No Environment").tag(nil as EnvironmentModel?)
-                        ForEach(environments) { env in
-                            Text(env.name).tag(env as EnvironmentModel?)
-                        }
-                    }
-                    .labelsHidden()
-                    .frame(width: 120)
-
-                    Button {
-                        showEnvironmentManager = true
-                    } label: {
-                        Image(systemName: "gearshape")
-                            .font(.caption)
-                    }
-                    .buttonStyle(.plain)
-                    .help("Manage Environments")
-                }
-
-                Button {
-                    showCookieManager = true
-                } label: {
-                    Image(systemName: "shippingbox")
-                        .font(.caption)
-                }
-                .buttonStyle(.bordered)
-                .help("Cookie Manager")
-
-                Spacer()
-
-                Button {
-                    saveRequestName = ""
-                    saveRequestTags = ""
-                    showSaveDialog = true
-                } label: {
-                    Image(systemName: "bookmark.fill")
-                        .font(.caption)
-                }
-                .buttonStyle(.bordered)
-                .help("Save Request")
-                .disabled(url.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                .popover(isPresented: $showSaveDialog) {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Save Request").font(.headline)
-                        TextField("Name", text: $saveRequestName)
-                            .textFieldStyle(.roundedBorder)
-                        TextField("Tags (comma-separated)", text: $saveRequestTags)
-                            .textFieldStyle(.roundedBorder)
-                        HStack {
-                            Spacer()
-                            Button("Cancel") { showSaveDialog = false }
-                                .buttonStyle(.bordered)
-                            Button("Save") {
-                                saveCurrentRequest()
-                                showSaveDialog = false
-                            }
-                            .buttonStyle(.borderedProminent)
-                            .disabled(saveRequestName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                        }
-                    }
-                    .padding()
-                    .frame(width: 300)
-                }
-
-                Button {
-                    showSaved.toggle()
-                    if showSaved { showHistory = false }
-                } label: {
-                    Image(systemName: "bookmark")
-                        .font(.caption)
-                }
-                .buttonStyle(.bordered)
-                .help("Saved APIs")
-
-                Button {
-                    showHistory.toggle()
-                    if showHistory { showSaved = false }
-                } label: {
-                    Image(systemName: "clock.arrow.circlepath")
-                        .font(.caption)
-                }
-                .buttonStyle(.bordered)
-                .help("History")
-
-                Button {
-                    showImportCurl.toggle()
-                } label: {
-                    Image(systemName: "square.and.arrow.down")
-                        .font(.caption)
-                }
-                .buttonStyle(.bordered)
-                .help("Import cURL")
-                .popover(isPresented: $showImportCurl) {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Paste cURL Command").font(.headline)
-                        Text("Paste a cURL command to auto-fill the request fields")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        CodeEditorView(text: $curlImportText, fontSize: 11)
-                            .clipShape(RoundedRectangle(cornerRadius: 8))
-                            .overlay(RoundedRectangle(cornerRadius: 8).stroke(.separator, lineWidth: 0.5))
-                        HStack {
-                            Spacer()
-                            Button("Cancel") { showImportCurl = false; curlImportText = "" }
-                                .buttonStyle(.bordered)
-                            Button("Import") { importCurl(); showImportCurl = false }
-                                .buttonStyle(.borderedProminent)
-                                .disabled(curlImportText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                        }
-                    }
-                    .padding()
-                    .frame(width: 500, height: 300)
-                }
-
-                Button {
-                    showChains.toggle()
-                    if showChains {
-                        showSaved = false
-                        showHistory = false
-                    }
-                    if !showChains {
-                        selectedChain = nil
-                    }
-                } label: {
-                    Image(systemName: "link")
-                        .font(.caption)
-                }
-                .buttonStyle(.bordered)
-                .help("Chains")
-            }
-            .padding(.horizontal, 12)
-            .padding(.top, 8)
-            .padding(.bottom, 4)
-
-            // Main content with optional sidebars
             HStack(spacing: 0) {
                 if showSaved {
-                    SavedRequestsView(
-                        onSelect: { item in
-                            restoreFromSaved(item)
-                        }
-                    )
-                    .frame(width: 300)
-
+                    SavedRequestsView(onSelect: { item in restoreFromSaved(item) })
+                        .frame(width: 300)
                     Divider()
                 }
 
                 if showHistory {
                     HistoryView(
-                        onSelect: { item in
-                            restoreFromHistory(item)
-                        },
-                        onClear: {
-                            clearHistory()
-                        }
+                        onSelect: { item in restoreFromHistory(item) },
+                        onClear: { clearHistory() }
                     )
                     .frame(width: 300)
-
                     Divider()
                 }
 
                 if showChains {
-                    ChainListView { chain in
-                        selectedChain = chain
-                    }
-                    .frame(width: 250)
-
+                    ChainListView { chain in selectedChain = chain }
+                        .frame(width: 250)
                     Divider()
                 }
 
                 if let chain = selectedChain {
                     ChainEditorView(chain: chain)
                         .frame(maxWidth: .infinity)
-                } else {
+                } else if let tab = activeTab {
                     VSplitView {
                         RequestEditorView(
-                            method: $method, url: $url, queryParams: $queryParams, headers: $headers,
-                            bodyType: $bodyType, jsonBody: $jsonBody, formDataPairs: $formDataPairs, rawBody: $rawBody,
-                            authMethod: $authMethod, bearerToken: $bearerToken, basicUsername: $basicUsername, basicPassword: $basicPassword,
-                            apiKeyName: $apiKeyName, apiKeyValue: $apiKeyValue, apiKeyLocation: $apiKeyLocation,
-                            preScript: $preScript, postScript: $postScript, consoleLogs: consoleLogs,
-                            isSending: isSending, onSend: sendRequest
+                            method: methodBinding(tab),
+                            url: binding(tab, \.url),
+                            queryParams: kvBinding(tab, \.queryParamsJSON),
+                            headers: kvBinding(tab, \.headersJSON),
+                            bodyType: bodyTypeBinding(tab),
+                            jsonBody: binding(tab, \.jsonBody),
+                            formDataPairs: kvBinding(tab, \.formDataJSON),
+                            rawBody: binding(tab, \.rawBody),
+                            authMethod: authMethodBinding(tab),
+                            bearerToken: binding(tab, \.bearerToken),
+                            basicUsername: binding(tab, \.basicUsername),
+                            basicPassword: binding(tab, \.basicPassword),
+                            apiKeyName: binding(tab, \.apiKeyName),
+                            apiKeyValue: binding(tab, \.apiKeyValue),
+                            apiKeyLocation: apiKeyLocationBinding(tab),
+                            preScript: binding(tab, \.preScript),
+                            postScript: binding(tab, \.postScript),
+                            consoleLogs: consoleLogs,
+                            isSending: isSending,
+                            onSend: sendRequest
                         )
                         .frame(maxWidth: .infinity, minHeight: 220)
 
@@ -255,7 +103,7 @@ public struct APIClientView: View {
                             response: response,
                             error: errorMessage,
                             curlCommand: lastCurlCommand,
-                            rewriteScript: $rewriteScript,
+                            rewriteScript: binding(tab, \.rewriteScript),
                             rewriteScriptLogs: rewriteScriptLogs
                         ) { rewritten in
                             response = rewritten
@@ -263,6 +111,7 @@ public struct APIClientView: View {
                         .frame(maxWidth: .infinity, minHeight: 180)
                     }
                     .frame(maxWidth: .infinity)
+                    .id(tab.id)
                 }
             }
         }
@@ -275,11 +124,7 @@ public struct APIClientView: View {
                 .frame(minWidth: 600, minHeight: 400)
         }
         .onChange(of: selectedEnvironment) { _, newEnv in
-            // Deactivate all environments first
-            for env in environments {
-                env.isActive = false
-            }
-            // Activate the selected one
+            for env in environments { env.isActive = false }
             if let env = newEnv {
                 env.isActive = true
                 ScriptEngine.setEnvironment(env.variables)
@@ -287,40 +132,402 @@ public struct APIClientView: View {
                 ScriptEngine.setEnvironment([:])
             }
         }
+        .onChange(of: activeTab?.id) { _, _ in
+            consoleLogs = []
+            rewriteScriptLogs = []
+            if let tab = activeTab {
+                loadResponseFromTab(tab)
+            } else {
+                response = nil
+                errorMessage = nil
+                lastCurlCommand = nil
+            }
+        }
         .onAppear {
-            // Load the active environment on appear
             if let activeEnv = environments.first(where: { $0.isActive }) {
                 selectedEnvironment = activeEnv
                 ScriptEngine.setEnvironment(activeEnv.variables)
             }
+            ensureInitialTab()
+            if let tab = activeTab {
+                loadResponseFromTab(tab)
+            }
         }
     }
 
+    // MARK: - Response persistence per tab
+
+    private func loadResponseFromTab(_ tab: OpenTabModel) {
+        if let status = tab.lastResponseStatusCode,
+           let body = tab.lastResponseBody,
+           let duration = tab.lastResponseDuration,
+           let size = tab.lastResponseBodySize {
+            let headers: [String: String] = {
+                if let d = tab.lastResponseHeadersJSON,
+                   let pairs = try? JSONDecoder().decode([KeyValuePair].self, from: d) {
+                    return Dictionary(uniqueKeysWithValues: pairs.map { ($0.key, $0.value) })
+                }
+                return [:]
+            }()
+            let cookies: [String] = {
+                if let d = tab.lastResponseCookiesJSON,
+                   let arr = try? JSONDecoder().decode([String].self, from: d) {
+                    return arr
+                }
+                return []
+            }()
+            response = HTTPResponse(
+                statusCode: status,
+                headers: headers,
+                body: body,
+                duration: duration,
+                bodySize: size,
+                cookies: cookies
+            )
+        } else {
+            response = nil
+        }
+        errorMessage = tab.lastErrorMessage
+        lastCurlCommand = tab.lastCurlCommand
+    }
+
+    private func storeResponseInTab(_ tab: OpenTabModel, response: HTTPResponse) {
+        tab.lastResponseStatusCode = response.statusCode
+        tab.lastResponseBody = response.body
+        let headerPairs = response.headers.map { KeyValuePair(key: $0.key, value: $0.value) }
+        tab.lastResponseHeadersJSON = try? JSONEncoder().encode(headerPairs)
+        tab.lastResponseDuration = response.duration
+        tab.lastResponseBodySize = response.bodySize
+        tab.lastResponseCookiesJSON = try? JSONEncoder().encode(response.cookies)
+        tab.lastErrorMessage = nil
+        tab.lastCurlCommand = lastCurlCommand
+        tab.lastResponseAt = Date()
+    }
+
+    private func storeErrorInTab(_ tab: OpenTabModel, message: String) {
+        tab.lastErrorMessage = message
+        tab.lastResponseAt = Date()
+    }
+
+    @ViewBuilder
+    private var toolbar: some View {
+        HStack(spacing: 8) {
+            Toggle(isOn: $debugMode) {
+                Image(systemName: "ladybug").font(.caption)
+            }
+            .toggleStyle(.button)
+            .help("Debug Mode")
+            .onChange(of: debugMode) { _, newValue in
+                HTTPClientService.debugEnabled = newValue
+            }
+
+            HStack(spacing: 4) {
+                Image(systemName: "globe").font(.caption).foregroundStyle(.secondary)
+                Picker("", selection: $selectedEnvironment) {
+                    Text("No Environment").tag(nil as EnvironmentModel?)
+                    ForEach(environments) { env in
+                        Text(env.name).tag(env as EnvironmentModel?)
+                    }
+                }
+                .labelsHidden()
+                .frame(width: 120)
+
+                Button {
+                    showEnvironmentManager = true
+                } label: {
+                    Image(systemName: "gearshape").font(.caption)
+                }
+                .buttonStyle(.plain)
+                .help("Manage Environments")
+            }
+
+            Button {
+                showCookieManager = true
+            } label: {
+                Image(systemName: "shippingbox").font(.caption)
+            }
+            .buttonStyle(.bordered)
+            .help("Cookie Manager")
+
+            Spacer()
+
+            Button {
+                saveRequestName = activeTab?.displayName ?? ""
+                saveRequestTags = ""
+                showSaveDialog = true
+            } label: {
+                Image(systemName: "bookmark.fill").font(.caption)
+            }
+            .buttonStyle(.bordered)
+            .help("Save Request")
+            .disabled((activeTab?.url ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            .popover(isPresented: $showSaveDialog) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Save Request").font(.headline)
+                    TextField("Name", text: $saveRequestName)
+                        .textFieldStyle(.roundedBorder)
+                    TextField("Tags (comma-separated)", text: $saveRequestTags)
+                        .textFieldStyle(.roundedBorder)
+                    HStack {
+                        Spacer()
+                        Button("Cancel") { showSaveDialog = false }
+                            .buttonStyle(.bordered)
+                        Button("Save") {
+                            saveCurrentRequest()
+                            showSaveDialog = false
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(saveRequestName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    }
+                }
+                .padding()
+                .frame(width: 300)
+            }
+
+            Button {
+                showSaved.toggle()
+                if showSaved { showHistory = false }
+            } label: {
+                Image(systemName: "bookmark").font(.caption)
+            }
+            .buttonStyle(.bordered)
+            .help("Saved APIs")
+
+            Button {
+                showHistory.toggle()
+                if showHistory { showSaved = false }
+            } label: {
+                Image(systemName: "clock.arrow.circlepath").font(.caption)
+            }
+            .buttonStyle(.bordered)
+            .help("History")
+
+            Button {
+                showImportCurl.toggle()
+            } label: {
+                Image(systemName: "square.and.arrow.down").font(.caption)
+            }
+            .buttonStyle(.bordered)
+            .help("Import cURL")
+            .popover(isPresented: $showImportCurl) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Paste cURL Command").font(.headline)
+                    Text("Paste a cURL command to auto-fill the request fields")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    CodeEditorView(text: $curlImportText, fontSize: 11)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(.separator, lineWidth: 0.5))
+                    HStack {
+                        Spacer()
+                        Button("Cancel") { showImportCurl = false; curlImportText = "" }
+                            .buttonStyle(.bordered)
+                        Button("Import") { importCurl(); showImportCurl = false }
+                            .buttonStyle(.borderedProminent)
+                            .disabled(curlImportText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    }
+                }
+                .padding()
+                .frame(width: 500, height: 300)
+            }
+
+            Button {
+                showChains.toggle()
+                if showChains {
+                    showSaved = false
+                    showHistory = false
+                }
+                if !showChains {
+                    selectedChain = nil
+                }
+            } label: {
+                Image(systemName: "link").font(.caption)
+            }
+            .buttonStyle(.bordered)
+            .help("Chains")
+
+            Button {
+                newTab()
+            } label: {
+                Image(systemName: "plus").font(.caption)
+            }
+            .buttonStyle(.borderedProminent)
+            .help("New Request Tab")
+            .keyboardShortcut("t", modifiers: .command)
+        }
+        .padding(.horizontal, 12)
+        .padding(.top, 8)
+        .padding(.bottom, 4)
+    }
+
+    // MARK: - Tab management
+
+    private func ensureInitialTab() {
+        if tabs.isEmpty {
+            let tab = OpenTabModel()
+            tab.isActive = true
+            tab.sortIndex = 0
+            modelContext.insert(tab)
+            activeTabID = tab.id
+        } else if activeTabID == nil {
+            let existing = tabs.first(where: { $0.isActive }) ?? tabs.first
+            activeTabID = existing?.id
+        }
+    }
+
+    private func selectTab(_ tab: OpenTabModel) {
+        for t in tabs { t.isActive = (t.id == tab.id) }
+        activeTabID = tab.id
+    }
+
+    private func newTab() {
+        let tab = OpenTabModel()
+        tab.sortIndex = (tabs.map { $0.sortIndex }.max() ?? -1) + 1
+        for t in tabs { t.isActive = false }
+        tab.isActive = true
+        modelContext.insert(tab)
+        activeTabID = tab.id
+    }
+
+    private func closeTab(_ tab: OpenTabModel) {
+        let wasActive = (tab.id == activeTab?.id)
+        let remaining = tabs.filter { $0.id != tab.id }
+        modelContext.delete(tab)
+
+        if remaining.isEmpty {
+            let blank = OpenTabModel()
+            blank.isActive = true
+            blank.sortIndex = 0
+            modelContext.insert(blank)
+            activeTabID = blank.id
+        } else if wasActive {
+            let next = remaining.first!
+            for t in remaining { t.isActive = (t.id == next.id) }
+            activeTabID = next.id
+        }
+    }
+
+    // MARK: - Bindings into active tab
+
+    private func binding(_ tab: OpenTabModel, _ keyPath: ReferenceWritableKeyPath<OpenTabModel, String>) -> Binding<String> {
+        Binding(
+            get: { tab[keyPath: keyPath] },
+            set: { newValue in
+                tab[keyPath: keyPath] = newValue
+                markDirty(tab)
+            }
+        )
+    }
+
+    private func kvBinding(_ tab: OpenTabModel, _ dataKeyPath: ReferenceWritableKeyPath<OpenTabModel, Data?>) -> Binding<[KeyValuePair]> {
+        Binding(
+            get: {
+                if let d = tab[keyPath: dataKeyPath],
+                   let decoded = try? JSONDecoder().decode([KeyValuePair].self, from: d) {
+                    return decoded
+                }
+                return [KeyValuePair()]
+            },
+            set: { newValue in
+                tab[keyPath: dataKeyPath] = try? JSONEncoder().encode(newValue)
+                markDirty(tab)
+            }
+        )
+    }
+
+    private func methodBinding(_ tab: OpenTabModel) -> Binding<HTTPMethod> {
+        Binding(
+            get: { HTTPMethod(rawValue: tab.method) ?? .get },
+            set: { newValue in
+                tab.method = newValue.rawValue
+                markDirty(tab)
+            }
+        )
+    }
+
+    private func bodyTypeBinding(_ tab: OpenTabModel) -> Binding<BodyType> {
+        Binding(
+            get: { BodyType(rawValue: tab.bodyType) ?? .none },
+            set: { newValue in
+                tab.bodyType = newValue.rawValue
+                markDirty(tab)
+            }
+        )
+    }
+
+    private func authMethodBinding(_ tab: OpenTabModel) -> Binding<AuthMethod> {
+        Binding(
+            get: { AuthMethod(rawValue: tab.authMethod) ?? .none },
+            set: { newValue in
+                tab.authMethod = newValue.rawValue
+                markDirty(tab)
+            }
+        )
+    }
+
+    private func apiKeyLocationBinding(_ tab: OpenTabModel) -> Binding<APIKeyLocation> {
+        Binding(
+            get: { APIKeyLocation(rawValue: tab.apiKeyLocation) ?? .header },
+            set: { newValue in
+                tab.apiKeyLocation = newValue.rawValue
+                markDirty(tab)
+            }
+        )
+    }
+
+    private func markDirty(_ tab: OpenTabModel) {
+        tab.isDirty = true
+        tab.updatedAt = Date()
+    }
+
+    // MARK: - Send
+
     private func sendRequest() {
+        guard let tab = activeTab else { return }
         isSending = true
         response = nil
         errorMessage = nil
         lastCurlCommand = nil
         consoleLogs = []
         rewriteScriptLogs = []
+        tab.lastResponseStatusCode = nil
+        tab.lastResponseBody = nil
+        tab.lastResponseHeadersJSON = nil
+        tab.lastResponseDuration = nil
+        tab.lastResponseBodySize = nil
+        tab.lastResponseCookiesJSON = nil
+        tab.lastErrorMessage = nil
+        tab.lastCurlCommand = nil
+
+        let bodyTypeEnum = BodyType(rawValue: tab.bodyType) ?? .none
+        let authMethodEnum = AuthMethod(rawValue: tab.authMethod) ?? .none
+        let apiKeyLocEnum = APIKeyLocation(rawValue: tab.apiKeyLocation) ?? .header
 
         let currentBody: RequestBody? = {
-            switch bodyType {
+            switch bodyTypeEnum {
             case .none: nil
-            case .json: .json(jsonBody)
-            case .formData: .formData(formDataPairs)
-            case .raw: .raw(rawBody)
+            case .json: .json(tab.jsonBody)
+            case .formData: .formData(tab.formDataPairs)
+            case .raw: .raw(tab.rawBody)
             }
         }()
 
         let currentAuth: AuthType? = {
-            switch authMethod {
+            switch authMethodEnum {
             case .none: nil
-            case .bearer: .bearerToken(bearerToken)
-            case .basic: .basicAuth(username: basicUsername, password: basicPassword)
-            case .apiKey: .apiKey(key: apiKeyName, value: apiKeyValue, addTo: apiKeyLocation)
+            case .bearer: .bearerToken(tab.bearerToken)
+            case .basic: .basicAuth(username: tab.basicUsername, password: tab.basicPassword)
+            case .apiKey: .apiKey(key: tab.apiKeyName, value: tab.apiKeyValue, addTo: apiKeyLocEnum)
             }
         }()
+
+        let method = HTTPMethod(rawValue: tab.method) ?? .get
+        let url = tab.url
+        let headers = tab.headers
+        let queryParams = tab.queryParams
+        let preScript = tab.preScript
+        let postScript = tab.postScript
+        let rewriteScript = tab.rewriteScript
 
         Task {
             let result = await RequestExecutor.execute(
@@ -338,19 +545,21 @@ public struct APIClientView: View {
             consoleLogs = result.consoleLogs
             if let resp = result.response {
                 response = resp
-                saveToHistory(resp)
+                storeResponseInTab(tab, response: resp)
+                saveToHistory(resp, tab: tab)
             }
             if let err = result.error {
                 errorMessage = err
+                storeErrorInTab(tab, message: err)
             }
             isSending = false
         }
     }
 
-    private func saveToHistory(_ httpResponse: HTTPResponse) {
+    private func saveToHistory(_ httpResponse: HTTPResponse, tab: OpenTabModel) {
         let history = HTTPHistoryModel(
-            requestMethod: method.rawValue,
-            requestURL: url,
+            requestMethod: tab.method,
+            requestURL: tab.url,
             responseStatus: httpResponse.statusCode,
             duration: httpResponse.duration,
             responseSize: httpResponse.bodySize
@@ -359,83 +568,74 @@ public struct APIClientView: View {
         history.responseHeadersJSON = try? JSONEncoder().encode(
             httpResponse.headers.map { KeyValuePair(key: $0.key, value: $0.value) }
         )
-        history.requestHeadersJSON = try? JSONEncoder().encode(headers)
-        history.queryParamsJSON = try? JSONEncoder().encode(queryParams)
+        history.requestHeadersJSON = try? JSONEncoder().encode(tab.headers)
+        history.queryParamsJSON = try? JSONEncoder().encode(tab.queryParams)
 
-        // Save body based on type
-        switch bodyType {
-        case .none:
-            break
-        case .json:
-            history.requestBodyJSON = jsonBody.data(using: .utf8)
-        case .formData:
-            history.formDataJSON = try? JSONEncoder().encode(formDataPairs)
-        case .raw:
-            history.rawBody = rawBody
+        let bodyTypeEnum = BodyType(rawValue: tab.bodyType) ?? .none
+        switch bodyTypeEnum {
+        case .none: break
+        case .json: history.requestBodyJSON = tab.jsonBody.data(using: .utf8)
+        case .formData: history.formDataJSON = try? JSONEncoder().encode(tab.formDataPairs)
+        case .raw: history.rawBody = tab.rawBody
         }
 
-        // Save scripts
-        history.preScript = preScript.isEmpty ? nil : preScript
-        history.postScript = postScript.isEmpty ? nil : postScript
-        history.rewriteScript = rewriteScript.isEmpty ? nil : rewriteScript
-        history.bodyType = bodyType.rawValue
+        history.preScript = tab.preScript.isEmpty ? nil : tab.preScript
+        history.postScript = tab.postScript.isEmpty ? nil : tab.postScript
+        history.rewriteScript = tab.rewriteScript.isEmpty ? nil : tab.rewriteScript
+        history.bodyType = tab.bodyType
         modelContext.insert(history)
     }
 
     private func restoreFromHistory(_ item: HTTPHistoryModel) {
-        method = HTTPMethod(rawValue: item.requestMethod) ?? .get
-        url = item.requestURL
+        let tab = OpenTabModel()
+        tab.sortIndex = (tabs.map { $0.sortIndex }.max() ?? -1) + 1
+        tab.method = item.requestMethod
+        tab.url = item.requestURL
 
-        // Restore headers
         if let data = item.requestHeadersJSON,
            let decoded = try? JSONDecoder().decode([KeyValuePair].self, from: data) {
-            headers = decoded
+            tab.headers = decoded
         } else {
-            headers = [KeyValuePair()]
+            tab.headers = [KeyValuePair()]
         }
 
-        // Restore query params
         if let data = item.queryParamsJSON,
            let decoded = try? JSONDecoder().decode([KeyValuePair].self, from: data) {
-            queryParams = decoded
+            tab.queryParams = decoded
         } else {
-            queryParams = [KeyValuePair()]
+            tab.queryParams = [KeyValuePair()]
         }
 
-        // Restore body type and content
         if let bt = item.bodyType, let t = BodyType(rawValue: bt) {
-            bodyType = t
+            tab.bodyType = t.rawValue
             switch t {
             case .none:
-                jsonBody = ""
-                formDataPairs = [KeyValuePair()]
-                rawBody = ""
+                break
             case .json:
                 if let data = item.requestBodyJSON, let body = String(data: data, encoding: .utf8) {
-                    jsonBody = body
+                    tab.jsonBody = body
                 }
-                formDataPairs = [KeyValuePair()]
-                rawBody = ""
             case .formData:
                 if let data = item.formDataJSON,
                    let decoded = try? JSONDecoder().decode([KeyValuePair].self, from: data) {
-                    formDataPairs = decoded
+                    tab.formDataPairs = decoded
                 }
-                jsonBody = ""
-                rawBody = ""
             case .raw:
-                rawBody = item.rawBody ?? ""
-                jsonBody = ""
-                formDataPairs = [KeyValuePair()]
+                tab.rawBody = item.rawBody ?? ""
             }
         } else {
-            bodyType = .none
+            tab.bodyType = BodyType.none.rawValue
         }
 
-        // Restore scripts
-        preScript = item.preScript ?? ""
-        postScript = item.postScript ?? ""
-        rewriteScript = item.rewriteScript ?? ""
+        tab.preScript = item.preScript ?? ""
+        tab.postScript = item.postScript ?? ""
+        tab.rewriteScript = item.rewriteScript ?? ""
+        tab.isDirty = true
+
+        for t in tabs { t.isActive = false }
+        tab.isActive = true
+        modelContext.insert(tab)
+        activeTabID = tab.id
 
         response = nil
         errorMessage = nil
@@ -451,98 +651,114 @@ public struct APIClientView: View {
     }
 
     private func importCurl() {
-        guard let result = CurlHelper.parse(curlImportText) else { return }
+        guard let result = CurlHelper.parse(curlImportText), let tab = activeTab else { return }
 
-        url = result.url
-        method = HTTPMethod(rawValue: result.method) ?? .get
-
-        headers = result.headers.map { KeyValuePair(key: $0.0, value: $0.1) }
-        if headers.isEmpty { headers = [KeyValuePair()] }
+        tab.url = result.url
+        tab.method = result.method
+        let parsedHeaders = result.headers.map { KeyValuePair(key: $0.0, value: $0.1) }
+        tab.headers = parsedHeaders.isEmpty ? [KeyValuePair()] : parsedHeaders
 
         if let body = result.body {
-            // Check if it's JSON
             if let data = body.data(using: .utf8),
                (try? JSONSerialization.jsonObject(with: data)) != nil {
-                bodyType = .json
-                jsonBody = body
+                tab.bodyType = BodyType.json.rawValue
+                tab.jsonBody = body
             } else {
-                bodyType = .raw
-                rawBody = body
+                tab.bodyType = BodyType.raw.rawValue
+                tab.rawBody = body
             }
         } else {
-            bodyType = .none
+            tab.bodyType = BodyType.none.rawValue
         }
 
+        markDirty(tab)
         curlImportText = ""
     }
 
     private func saveCurrentRequest() {
+        guard let tab = activeTab else { return }
         let saved = SavedRequestModel(
             name: saveRequestName,
-            method: method.rawValue,
-            url: url
+            method: tab.method,
+            url: tab.url
         )
         saved.tagList = saveRequestTags
             .split(separator: ",")
             .map { $0.trimmingCharacters(in: .whitespaces) }
             .filter { !$0.isEmpty }
 
-        saved.headers = headers
-        saved.bodyType = bodyType.rawValue
+        saved.headers = tab.headers
+        saved.bodyType = tab.bodyType
 
-        switch bodyType {
-        case .none:
-            break
-        case .json:
-            saved.body = .json(jsonBody)
-        case .formData:
-            saved.body = .formData(formDataPairs)
-        case .raw:
-            saved.body = .raw(rawBody)
+        let bodyTypeEnum = BodyType(rawValue: tab.bodyType) ?? .none
+        switch bodyTypeEnum {
+        case .none: break
+        case .json: saved.body = .json(tab.jsonBody)
+        case .formData: saved.body = .formData(tab.formDataPairs)
+        case .raw: saved.body = .raw(tab.rawBody)
         }
 
-        saved.preScript = preScript.isEmpty ? nil : preScript
-        saved.postScript = postScript.isEmpty ? nil : postScript
-        saved.rewriteScript = rewriteScript.isEmpty ? nil : rewriteScript
+        saved.preScript = tab.preScript.isEmpty ? nil : tab.preScript
+        saved.postScript = tab.postScript.isEmpty ? nil : tab.postScript
+        saved.rewriteScript = tab.rewriteScript.isEmpty ? nil : tab.rewriteScript
 
         modelContext.insert(saved)
+
+        tab.displayName = saveRequestName
+        tab.linkedSavedRequestID = saved.id
+        tab.isDirty = false
     }
 
     private func restoreFromSaved(_ item: SavedRequestModel) {
-        method = HTTPMethod(rawValue: item.method) ?? .get
-        url = item.url
-        headers = item.headers.isEmpty ? [KeyValuePair()] : item.headers
+        // If a tab is already opened for this saved request, just activate it.
+        if let existing = tabs.first(where: { $0.linkedSavedRequestID == item.id }) {
+            selectTab(existing)
+            return
+        }
 
-        if let bt = item.bodyType, let t = BodyType(rawValue: bt) {
-            bodyType = t
+        // Otherwise open a new tab with the saved content.
+        let tab = OpenTabModel()
+        tab.sortIndex = (tabs.map { $0.sortIndex }.max() ?? -1) + 1
+        tab.displayName = item.name
+        tab.linkedSavedRequestID = item.id
+        tab.method = item.method
+        tab.url = item.url
+        tab.headers = item.headers.isEmpty ? [KeyValuePair()] : item.headers
+
+        if let bt = item.bodyType {
+            tab.bodyType = bt
         } else {
-            bodyType = .none
+            tab.bodyType = BodyType.none.rawValue
         }
 
         if let body = item.body {
             switch body {
             case .json(let json):
-                jsonBody = json
-                bodyType = .json
+                tab.jsonBody = json
+                tab.bodyType = BodyType.json.rawValue
             case .formData(let pairs):
-                formDataPairs = pairs
-                bodyType = .formData
+                tab.formDataPairs = pairs
+                tab.bodyType = BodyType.formData.rawValue
             case .raw(let raw):
-                rawBody = raw
-                bodyType = .raw
-            case .binary:
-                break
+                tab.rawBody = raw
+                tab.bodyType = BodyType.raw.rawValue
+            case .binary: break
             }
         }
 
-        preScript = item.preScript ?? ""
-        postScript = item.postScript ?? ""
-        rewriteScript = item.rewriteScript ?? ""
+        tab.preScript = item.preScript ?? ""
+        tab.postScript = item.postScript ?? ""
+        tab.rewriteScript = item.rewriteScript ?? ""
+        tab.isDirty = false
+
+        for t in tabs { t.isActive = false }
+        tab.isActive = true
+        modelContext.insert(tab)
+        activeTabID = tab.id
 
         response = nil
         errorMessage = nil
     }
-
 }
 
 extension APIClientView {

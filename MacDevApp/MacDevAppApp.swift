@@ -45,8 +45,8 @@ struct MacDevAppApp: App {
 
         updaterManager.start()
 
-        // Configure SwiftData with iCloud sync
-        let schema = Schema([
+        // Configure SwiftData with iCloud sync for shared models
+        let cloudSchema = Schema([
             HTTPRequestModel.self,
             HTTPCollectionModel.self,
             HTTPHistoryModel.self,
@@ -57,12 +57,32 @@ struct MacDevAppApp: App {
             GlobalVariablesModel.self,
             CookieModel.self
         ])
-        let config = ModelConfiguration(
-            schema: schema,
+        // OpenTabModel is device-local (not synced via CloudKit)
+        let localSchema = Schema([OpenTabModel.self])
+        let fullSchema = Schema([
+            HTTPRequestModel.self,
+            HTTPCollectionModel.self,
+            HTTPHistoryModel.self,
+            SavedRequestModel.self,
+            ChainModel.self,
+            ChainStepModel.self,
+            EnvironmentModel.self,
+            GlobalVariablesModel.self,
+            CookieModel.self,
+            OpenTabModel.self
+        ])
+        let cloudConfig = ModelConfiguration(
+            "Cloud",
+            schema: cloudSchema,
             cloudKitDatabase: .automatic
         )
+        let localConfig = ModelConfiguration(
+            "Local",
+            schema: localSchema,
+            cloudKitDatabase: .none
+        )
         do {
-            modelContainer = try ModelContainer(for: schema, configurations: [config])
+            modelContainer = try ModelContainer(for: fullSchema, configurations: [cloudConfig, localConfig])
         } catch {
             fatalError("Failed to create ModelContainer: \(error)")
         }
