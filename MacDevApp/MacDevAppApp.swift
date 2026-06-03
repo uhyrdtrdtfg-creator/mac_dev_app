@@ -37,7 +37,6 @@ final class UpdaterManager {
 @main
 struct MacDevAppApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
-    @AppStorage("devtoolkit.showMenuBar") private var showMenuBar = true
 
     private let updaterManager = UpdaterManager()
     private let modelContainer: ModelContainer
@@ -113,7 +112,7 @@ struct MacDevAppApp: App {
         .windowStyle(.automatic)
         .defaultSize(width: 1100, height: 750)
 
-        MenuBarExtra("DevToolkit", systemImage: "hammer.fill", isInserted: $showMenuBar) {
+        MenuBarExtra("DevToolkit", systemImage: "hammer.fill") {
             MenuBarView(registry: registry, handoff: handoff)
         }
         .menuBarExtraStyle(.window)

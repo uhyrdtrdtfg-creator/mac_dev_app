@@ -3,14 +3,12 @@ import ServiceManagement
 
 /// App settings: menu-bar visibility, launch-at-login, and the global hot-key.
 struct SettingsView: View {
-    @AppStorage("devtoolkit.showMenuBar") private var showMenuBar = true
     @State private var shortcut = HotKeyShortcut.load()
     @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
 
     var body: some View {
         Form {
             Section("General") {
-                Toggle("Show icon in menu bar", isOn: $showMenuBar)
                 Toggle("Launch at login", isOn: $launchAtLogin)
                     .onChange(of: launchAtLogin) { _, newValue in setLaunchAtLogin(newValue) }
             }
