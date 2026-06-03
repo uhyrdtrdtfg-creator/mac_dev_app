@@ -1,13 +1,15 @@
 import SwiftUI
+import Combine
 import DevAppCore
 import CryptoTools
 import ConversionTools
 import APIClient
 
 struct ContentView: View {
-    @State private var registry = ToolRegistry()
+    @Bindable var registry: ToolRegistry
+    let handoff: ToolHandoff
     @State private var showPalette = false
-    @State private var handoff = ToolHandoff()
+    @Environment(\.openWindow) private var openWindow
 
     var body: some View {
         NavigationSplitView {
@@ -49,80 +51,18 @@ struct ContentView: View {
             if let newValue { registry.recordUsage(newValue) }
         }
         .onAppear {
-            registerAllTools()
-            configureHandoff()
+            AppCoordinator.shared.openPalette = {
+                showMainWindow(using: openWindow)
+                NotificationCenter.default.post(name: .openCommandPalette, object: nil)
+            }
+            AppCoordinator.shared.route = { text, toolID in
+                showMainWindow(using: openWindow)
+                handoff.send(text, to: toolID)
+            }
         }
-    }
-
-    private func configureHandoff() {
-        handoff.onSelect = { id in registry.selectedToolID = id }
-        handoff.destinations = [
-            .init(id: "json-formatter", name: "JSON Formatter", icon: "curlybraces"),
-            .init(id: "json-to-code", name: "JSON → Code", icon: "chevron.left.forwardslash.chevron.right"),
-            .init(id: "sql-formatter", name: "SQL Formatter", icon: "tablecells.badge.ellipsis"),
-            .init(id: "sql-result", name: "SQL Result → CSV/SQL", icon: "tablecells.fill"),
-            .init(id: "base64-codec", name: "Base64", icon: "doc.text"),
-            .init(id: "url-codec", name: "URL Encode/Decode", icon: "link"),
-            .init(id: "hex-ascii", name: "Hex / ASCII", icon: "01.square"),
-            .init(id: "html-entity", name: "HTML Entity", icon: "chevron.left.slash.chevron.right"),
-            .init(id: "string-escape", name: "String Escape", icon: "textformat"),
-            .init(id: "regex-tester", name: "Regex Tester", icon: "asterisk"),
-            .init(id: "unicode-inspector", name: "Unicode Inspector", icon: "character.magnify"),
-            .init(id: "text-analyzer", name: "Text Analyzer", icon: "text.magnifyingglass"),
-        ]
-    }
-
-    private func registerAllTools() {
-        registry.registerAll([
-            // Crypto
-            HashGeneratorView.descriptor,
-            HMACGeneratorView.descriptor,
-            AESCryptorView.descriptor,
-            RSACryptorView.descriptor,
-            JWTView.descriptor,
-            CertificateInspectorView.descriptor,
-            KeyDerivationView.descriptor,
-            TOTPView.descriptor,
-            // API Client
-            APIClientView.descriptor,
-            WebSocketClientView.descriptor,
-            MockServerView.descriptor,
-            // Conversion
-            TimestampConverterView.descriptor,
-            URLCodecView.descriptor,
-            Base64CodecView.descriptor,
-            JSONFormatterView.descriptor,
-            UUIDGeneratorView.descriptor,
-            RandomStringGeneratorView.descriptor,
-            BaseConverterView.descriptor,
-            HTMLEntityCodecView.descriptor,
-            StringEscaperView.descriptor,
-            StringCaseConverterView.descriptor,
-            HexAsciiConverterView.descriptor,
-            LineSorterView.descriptor,
-            TextAnalyzerView.descriptor,
-            LoremIpsumGeneratorView.descriptor,
-            JSONYamlView.descriptor,
-            JSONCSVView.descriptor,
-            JSONTOMLView.descriptor,
-            MarkdownPreviewView.descriptor,
-            TextDiffView.descriptor,
-            OCRView.descriptor,
-            TranslatorView.descriptor,
-            // Developer
-            RegexTesterView.descriptor,
-            CronParserView.descriptor,
-            ColorConverterView.descriptor,
-            SQLFormatterView.descriptor,
-            UnicodeInspectorView.descriptor,
-            CompressionView.descriptor,
-            DotenvConverterView.descriptor,
-            SQLResultConverterView.descriptor,
-            // Generators
-            QRCodeView.descriptor,
-            JSONToCodeView.descriptor,
-            ImageToolboxView.descriptor,
-        ])
+        .onReceive(NotificationCenter.default.publisher(for: .openCommandPalette)) { _ in
+            showPalette = true
+        }
     }
 
     @ViewBuilder

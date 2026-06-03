@@ -7,10 +7,14 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		27FF189E39F2014CB4233C5A /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F38A4D0B6F13EFE9BD10C36A /* AppDelegate.swift */; };
+		28629CA7044E7B2D4506BA6A /* AppCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = F77C7931D9624A40AE9FF3A1 /* AppCoordinator.swift */; };
+		2CB72CC35619997EF7D2957A /* HotKeyShortcut.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA1B31EDEAFEBE08C279449E /* HotKeyShortcut.swift */; };
 		4B59BED42E70A263295E3439 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 8735535E3603F195334E2057 /* Assets.xcassets */; };
 		4DE74DA367029D09DFCD254A /* DevAppCore in Frameworks */ = {isa = PBXBuildFile; productRef = 57ED970735B49D8092D048C3 /* DevAppCore */; };
 		518ECCB85A7F9E6136E74A9C /* CommandPaletteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2921089A0DA94DD7288E221 /* CommandPaletteView.swift */; };
 		521F98159BE0282B51CF419E /* APIClient in Frameworks */ = {isa = PBXBuildFile; productRef = 9DE7889CBAD97C4D6D6BCAA2 /* APIClient */; };
+		58B5EA42FBE50702F0A04847 /* HotKeyRecorderField.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E8F5EFDE90177C0AD551179 /* HotKeyRecorderField.swift */; };
 		59E9EF15705C7B06F77B2398 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 42E07871FD70E8ADD1391DD0 /* Sparkle */; };
 		5A490AE1135C4CFE56DA9C0F /* ToolRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F706069CE7F18A563EE0C51 /* ToolRegistry.swift */; };
 		7BECBB976BA08E84513E2DE8 /* CryptoTools in Frameworks */ = {isa = PBXBuildFile; productRef = 70F202CAF23B1C6602368B33 /* CryptoTools */; };
@@ -18,24 +22,36 @@
 		828FA96AF9904E6712E8ADDA /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 416716C1D6CE01CEC7F1B54A /* ContentView.swift */; };
 		8622C0BDBF3776D2B47D428A /* SidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02E1C06628B8BDA10F824E4B /* SidebarView.swift */; };
 		C0E171F1F29C7D5A4161C6F7 /* CloudSyncService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 439FD998651B63E78B6551FE /* CloudSyncService.swift */; };
+		CA65976326702BBA32D5C315 /* MenuBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18E7C64B2AA54456846E391B /* MenuBarView.swift */; };
+		D9EEB85951AD29EE5458E6D1 /* GlobalHotKey.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D66C20261C216DAE2A6A325 /* GlobalHotKey.swift */; };
 		F158617A1B87E20DFF2586FE /* MacDevAppApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 12930FBF61F663189B00F108 /* MacDevAppApp.swift */; };
+		F57B65323907CE1D86D87C0E /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FF32F19F3AC426DF5D50D3F /* SettingsView.swift */; };
+		F6961E2E1E0ED5B5B2FAE2CA /* ServicesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD0366BCD8EAB9F8E3316EFF /* ServicesProvider.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		02E1C06628B8BDA10F824E4B /* SidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarView.swift; sourceTree = "<group>"; };
+		0E8F5EFDE90177C0AD551179 /* HotKeyRecorderField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HotKeyRecorderField.swift; sourceTree = "<group>"; };
 		12930FBF61F663189B00F108 /* MacDevAppApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacDevAppApp.swift; sourceTree = "<group>"; };
+		18E7C64B2AA54456846E391B /* MenuBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarView.swift; sourceTree = "<group>"; };
 		3A7560D3064F0BB5D09A8369 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		3F706069CE7F18A563EE0C51 /* ToolRegistry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolRegistry.swift; sourceTree = "<group>"; };
 		416716C1D6CE01CEC7F1B54A /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		439FD998651B63E78B6551FE /* CloudSyncService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudSyncService.swift; sourceTree = "<group>"; };
+		4D66C20261C216DAE2A6A325 /* GlobalHotKey.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlobalHotKey.swift; sourceTree = "<group>"; };
 		54AF5FF52D3BB2C875D334DE /* MacDevAppRelease.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = MacDevAppRelease.entitlements; sourceTree = "<group>"; };
 		69CCE1504D3EB106B6843F2E /* DevAppCore */ = {isa = PBXFileReference; lastKnownFileType = folder; name = DevAppCore; path = Packages/DevAppCore; sourceTree = SOURCE_ROOT; };
 		85631AA68C1015BA40C866C6 /* CryptoTools */ = {isa = PBXFileReference; lastKnownFileType = folder; name = CryptoTools; path = Packages/CryptoTools; sourceTree = SOURCE_ROOT; };
 		8735535E3603F195334E2057 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		8FF32F19F3AC426DF5D50D3F /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		AF5E3409A2C10A159200986C /* MacDevApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MacDevApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		B6A6BFC4E38853FF311C2064 /* ConversionTools */ = {isa = PBXFileReference; lastKnownFileType = folder; name = ConversionTools; path = Packages/ConversionTools; sourceTree = SOURCE_ROOT; };
+		BD0366BCD8EAB9F8E3316EFF /* ServicesProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServicesProvider.swift; sourceTree = "<group>"; };
+		CA1B31EDEAFEBE08C279449E /* HotKeyShortcut.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HotKeyShortcut.swift; sourceTree = "<group>"; };
 		D379F33ACF26F897EA64A046 /* APIClient */ = {isa = PBXFileReference; lastKnownFileType = folder; name = APIClient; path = Packages/APIClient; sourceTree = SOURCE_ROOT; };
 		E2921089A0DA94DD7288E221 /* CommandPaletteView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandPaletteView.swift; sourceTree = "<group>"; };
+		F38A4D0B6F13EFE9BD10C36A /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		F77C7931D9624A40AE9FF3A1 /* AppCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppCoordinator.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -62,6 +78,14 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
+		2CC16DB8A3E392C581DE7699 /* MenuBar */ = {
+			isa = PBXGroup;
+			children = (
+				18E7C64B2AA54456846E391B /* MenuBarView.swift */,
+			);
+			path = MenuBar;
+			sourceTree = "<group>";
+		};
 		378FC95743AD29A68247DC07 /* MacDevApp */ = {
 			isa = PBXGroup;
 			children = (
@@ -70,8 +94,11 @@
 				3A7560D3064F0BB5D09A8369 /* Info.plist */,
 				12930FBF61F663189B00F108 /* MacDevAppApp.swift */,
 				54AF5FF52D3BB2C875D334DE /* MacDevAppRelease.entitlements */,
+				70AA48E50884F5A3A5AA51C1 /* AppKit */,
+				2CC16DB8A3E392C581DE7699 /* MenuBar */,
 				5031BCF6CD4DA8709032BC95 /* Navigation */,
 				A5056AE4B615A84B04280170 /* Services */,
+				A0A86397D3115AE097866962 /* Settings */,
 			);
 			path = MacDevApp;
 			sourceTree = "<group>";
@@ -84,6 +111,27 @@
 				3F706069CE7F18A563EE0C51 /* ToolRegistry.swift */,
 			);
 			path = Navigation;
+			sourceTree = "<group>";
+		};
+		70AA48E50884F5A3A5AA51C1 /* AppKit */ = {
+			isa = PBXGroup;
+			children = (
+				F77C7931D9624A40AE9FF3A1 /* AppCoordinator.swift */,
+				F38A4D0B6F13EFE9BD10C36A /* AppDelegate.swift */,
+				4D66C20261C216DAE2A6A325 /* GlobalHotKey.swift */,
+				0E8F5EFDE90177C0AD551179 /* HotKeyRecorderField.swift */,
+				CA1B31EDEAFEBE08C279449E /* HotKeyShortcut.swift */,
+				BD0366BCD8EAB9F8E3316EFF /* ServicesProvider.swift */,
+			);
+			path = AppKit;
+			sourceTree = "<group>";
+		};
+		A0A86397D3115AE097866962 /* Settings */ = {
+			isa = PBXGroup;
+			children = (
+				8FF32F19F3AC426DF5D50D3F /* SettingsView.swift */,
+			);
+			path = Settings;
 			sourceTree = "<group>";
 		};
 		A5056AE4B615A84B04280170 /* Services */ = {
@@ -194,10 +242,18 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				28629CA7044E7B2D4506BA6A /* AppCoordinator.swift in Sources */,
+				27FF189E39F2014CB4233C5A /* AppDelegate.swift in Sources */,
 				C0E171F1F29C7D5A4161C6F7 /* CloudSyncService.swift in Sources */,
 				518ECCB85A7F9E6136E74A9C /* CommandPaletteView.swift in Sources */,
 				828FA96AF9904E6712E8ADDA /* ContentView.swift in Sources */,
+				D9EEB85951AD29EE5458E6D1 /* GlobalHotKey.swift in Sources */,
+				58B5EA42FBE50702F0A04847 /* HotKeyRecorderField.swift in Sources */,
+				2CB72CC35619997EF7D2957A /* HotKeyShortcut.swift in Sources */,
 				F158617A1B87E20DFF2586FE /* MacDevAppApp.swift in Sources */,
+				CA65976326702BBA32D5C315 /* MenuBarView.swift in Sources */,
+				F6961E2E1E0ED5B5B2FAE2CA /* ServicesProvider.swift in Sources */,
+				F57B65323907CE1D86D87C0E /* SettingsView.swift in Sources */,
 				8622C0BDBF3776D2B47D428A /* SidebarView.swift in Sources */,
 				5A490AE1135C4CFE56DA9C0F /* ToolRegistry.swift in Sources */,
 			);

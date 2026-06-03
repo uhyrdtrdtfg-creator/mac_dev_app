@@ -31,5 +31,53 @@
     <string>3U4+rtrejAHkgSvH80gASatQP/+6hKSI6dPFPeC1yQ8=</string>
     <key>SUEnableAutomaticChecks</key>
     <true/>
+    <key>NSServices</key>
+    <array>
+        <dict>
+            <key>NSMenuItem</key>
+            <dict>
+                <key>default</key>
+                <string>Open in DevToolkit</string>
+            </dict>
+            <key>NSMessage</key>
+            <string>openInDevToolkit</string>
+            <key>NSPortName</key>
+            <string>DevToolkit</string>
+            <key>NSSendTypes</key>
+            <array>
+                <string>NSStringPboardType</string>
+            </array>
+        </dict>
+        <dict>
+            <key>NSMenuItem</key>
+            <dict>
+                <key>default</key>
+                <string>Format JSON in DevToolkit</string>
+            </dict>
+            <key>NSMessage</key>
+            <string>formatJSONInDevToolkit</string>
+            <key>NSPortName</key>
+            <string>DevToolkit</string>
+            <key>NSSendTypes</key>
+            <array>
+                <string>NSStringPboardType</string>
+            </array>
+        </dict>
+        <dict>
+            <key>NSMenuItem</key>
+            <dict>
+                <key>default</key>
+                <string>Decode Base64 in DevToolkit</string>
+            </dict>
+            <key>NSMessage</key>
+            <string>decodeBase64InDevToolkit</string>
+            <key>NSPortName</key>
+            <string>DevToolkit</string>
+            <key>NSSendTypes</key>
+            <array>
+                <string>NSStringPboardType</string>
+            </array>
+        </dict>
+    </array>
 </dict>
 </plist>

@@ -27,13 +27,22 @@ final class UpdaterManager {
         } catch {
             print("Sparkle updater failed to start: \(error)")
         }
+        // Let the menu-bar "Update" action trigger a manual check.
+        AppCoordinator.shared.checkForUpdates = { [controller] in
+            controller.updater.checkForUpdates()
+        }
     }
 }
 
 @main
 struct MacDevAppApp: App {
+    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
+    @AppStorage("devtoolkit.showMenuBar") private var showMenuBar = true
+
     private let updaterManager = UpdaterManager()
     private let modelContainer: ModelContainer
+    @State private var registry = ToolRegistry()
+    @State private var handoff = ToolHandoff()
 
     init() {
         // Disable smart quotes/dashes globally — critical for a developer tool
@@ -86,14 +95,102 @@ struct MacDevAppApp: App {
         } catch {
             fatalError("Failed to create ModelContainer: \(error)")
         }
+
+        // Build shared tool state once, before any scene (menu bar, main window) appears.
+        let reg = ToolRegistry()
+        Self.registerAllTools(into: reg)
+        let bus = ToolHandoff()
+        Self.configureHandoff(bus, registry: reg)
+        _registry = State(initialValue: reg)
+        _handoff = State(initialValue: bus)
     }
 
     var body: some Scene {
-        WindowGroup {
-            ContentView()
+        WindowGroup(id: "main") {
+            ContentView(registry: registry, handoff: handoff)
         }
         .modelContainer(modelContainer)
         .windowStyle(.automatic)
         .defaultSize(width: 1100, height: 750)
+
+        MenuBarExtra("DevToolkit", systemImage: "hammer.fill", isInserted: $showMenuBar) {
+            MenuBarView(registry: registry, handoff: handoff)
+        }
+        .menuBarExtraStyle(.window)
+
+        Settings {
+            SettingsView()
+        }
+    }
+
+    private static func configureHandoff(_ handoff: ToolHandoff, registry: ToolRegistry) {
+        handoff.onSelect = { id in registry.selectedToolID = id }
+        handoff.destinations = [
+            .init(id: "json-formatter", name: "JSON Formatter", icon: "curlybraces"),
+            .init(id: "json-to-code", name: "JSON → Code", icon: "chevron.left.forwardslash.chevron.right"),
+            .init(id: "sql-formatter", name: "SQL Formatter", icon: "tablecells.badge.ellipsis"),
+            .init(id: "sql-result", name: "SQL Result → CSV/SQL", icon: "tablecells.fill"),
+            .init(id: "base64-codec", name: "Base64", icon: "doc.text"),
+            .init(id: "url-codec", name: "URL Encode/Decode", icon: "link"),
+            .init(id: "hex-ascii", name: "Hex / ASCII", icon: "01.square"),
+            .init(id: "html-entity", name: "HTML Entity", icon: "chevron.left.slash.chevron.right"),
+            .init(id: "string-escape", name: "String Escape", icon: "textformat"),
+            .init(id: "regex-tester", name: "Regex Tester", icon: "asterisk"),
+            .init(id: "unicode-inspector", name: "Unicode Inspector", icon: "character.magnify"),
+            .init(id: "text-analyzer", name: "Text Analyzer", icon: "text.magnifyingglass"),
+        ]
+    }
+
+    private static func registerAllTools(into registry: ToolRegistry) {
+        registry.registerAll([
+            // Crypto
+            HashGeneratorView.descriptor,
+            HMACGeneratorView.descriptor,
+            AESCryptorView.descriptor,
+            RSACryptorView.descriptor,
+            JWTView.descriptor,
+            CertificateInspectorView.descriptor,
+            KeyDerivationView.descriptor,
+            TOTPView.descriptor,
+            // API Client
+            APIClientView.descriptor,
+            WebSocketClientView.descriptor,
+            MockServerView.descriptor,
+            // Conversion
+            TimestampConverterView.descriptor,
+            URLCodecView.descriptor,
+            Base64CodecView.descriptor,
+            JSONFormatterView.descriptor,
+            UUIDGeneratorView.descriptor,
+            RandomStringGeneratorView.descriptor,
+            BaseConverterView.descriptor,
+            HTMLEntityCodecView.descriptor,
+            StringEscaperView.descriptor,
+            StringCaseConverterView.descriptor,
+            HexAsciiConverterView.descriptor,
+            LineSorterView.descriptor,
+            TextAnalyzerView.descriptor,
+            LoremIpsumGeneratorView.descriptor,
+            JSONYamlView.descriptor,
+            JSONCSVView.descriptor,
+            JSONTOMLView.descriptor,
+            MarkdownPreviewView.descriptor,
+            TextDiffView.descriptor,
+            OCRView.descriptor,
+            TranslatorView.descriptor,
+            // Developer
+            RegexTesterView.descriptor,
+            CronParserView.descriptor,
+            ColorConverterView.descriptor,
+            SQLFormatterView.descriptor,
+            UnicodeInspectorView.descriptor,
+            CompressionView.descriptor,
+            DotenvConverterView.descriptor,
+            SQLResultConverterView.descriptor,
+            // Generators
+            QRCodeView.descriptor,
+            JSONToCodeView.descriptor,
+            ImageToolboxView.descriptor,
+        ])
     }
 }
