@@ -4,6 +4,8 @@ public enum ToolCategory: String, CaseIterable, Identifiable, Sendable {
     case crypto
     case apiClient
     case conversion
+    case developer
+    case generators
 
     public var id: String { rawValue }
 
@@ -12,6 +14,8 @@ public enum ToolCategory: String, CaseIterable, Identifiable, Sendable {
         case .crypto: "Crypto"
         case .apiClient: "API Client"
         case .conversion: "Conversion"
+        case .developer: "Developer"
+        case .generators: "Generators"
         }
     }
 
@@ -20,6 +24,8 @@ public enum ToolCategory: String, CaseIterable, Identifiable, Sendable {
         case .crypto: "lock.shield"
         case .apiClient: "network"
         case .conversion: "arrow.2.squarepath"
+        case .developer: "hammer.fill"
+        case .generators: "sparkles"
         }
     }
 }

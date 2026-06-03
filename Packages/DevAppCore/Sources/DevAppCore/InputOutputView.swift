@@ -1,12 +1,14 @@
 import SwiftUI
 
 public struct InputOutputView<ConfigContent: View>: View {
+    @Environment(\.toolHandoff) private var handoff
     let title: LocalizedStringKey
     let description: LocalizedStringKey
     @Binding var input: String
     @Binding var output: String
     let inputLabel: LocalizedStringKey
     let outputLabel: LocalizedStringKey
+    let toolID: String?
     let configContent: () -> ConfigContent
 
     public init(
@@ -16,6 +18,7 @@ public struct InputOutputView<ConfigContent: View>: View {
         output: Binding<String>,
         inputLabel: LocalizedStringKey = "Input",
         outputLabel: LocalizedStringKey = "Output",
+        toolID: String? = nil,
         @ViewBuilder configContent: @escaping () -> ConfigContent = { EmptyView() }
     ) {
         self.title = title
@@ -24,6 +27,7 @@ public struct InputOutputView<ConfigContent: View>: View {
         self._output = output
         self.inputLabel = inputLabel
         self.outputLabel = outputLabel
+        self.toolID = toolID
         self.configContent = configContent
     }
 
@@ -83,6 +87,9 @@ public struct InputOutputView<ConfigContent: View>: View {
                             .foregroundStyle(.secondary)
                             .textCase(.uppercase)
                         Spacer()
+                        if toolID != nil {
+                            SendToMenu(text: output, excluding: toolID)
+                        }
                         CopyButton(text: output)
                     }
                     TextEditor(text: $output)
@@ -99,5 +106,10 @@ public struct InputOutputView<ConfigContent: View>: View {
             }
         }
         .padding(20)
+        .onAppear {
+            if let toolID, let incoming = handoff.consume(toolID) {
+                input = incoming
+            }
+        }
     }
 }

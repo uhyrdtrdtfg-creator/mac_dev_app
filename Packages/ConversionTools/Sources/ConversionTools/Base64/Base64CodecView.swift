@@ -16,7 +16,8 @@ public struct Base64CodecView: View {
             input: $input,
             output: $output,
             inputLabel: "Plain Text",
-            outputLabel: "Base64"
+            outputLabel: "Base64",
+            toolID: "base64-codec"
         ) {
             Toggle("URL-safe", isOn: $urlSafe).toggleStyle(.checkbox)
         }

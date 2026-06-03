@@ -12,13 +12,16 @@ Built with Swift 6, SwiftUI, and Liquid Glass (macOS 26+). Designed for develope
 
 ## Features
 
-### Crypto Tools (4)
+### Crypto Tools (7)
 | Tool | Description |
 |------|-------------|
 | **AES Encrypt/Decrypt** | ECB/CBC/GCM modes, 128/192/256-bit keys, PKCS7 padding |
 | **RSA Encrypt/Decrypt** | Key generation (1024-4096 bit), PKCS1/OAEP padding, PEM format |
-| **Hash Generator** | MD5, SHA-1, SHA-256, SHA-512 with uppercase toggle |
+| **Hash Generator** | MD5, SHA-1, SHA-256, SHA-512, uppercase toggle + file checksum compare |
 | **HMAC Generator** | HMAC-MD5/SHA1/SHA256/SHA512, Hex/Base64 output |
+| **JWT Decoder** | Decode header/payload, inspect claims, verify HS256/384/512 & RS256/384/512 |
+| **Certificate Viewer** | Parse X.509 PEM/DER — subject, issuer, validity, SAN, SHA-1/256 fingerprints |
+| **Key Derivation** | PBKDF2 & HKDF (SHA-1/256/512), configurable salt, iterations, length |
 
 ### HTTP Client
 | Feature | Description |
@@ -35,14 +38,16 @@ Built with Swift 6, SwiftUI, and Liquid Glass (macOS 26+). Designed for develope
 | **{{variable}}** | Template substitution from `pm.environment` in headers/URL/body |
 | **Request Chains** | Sequential multi-step API workflows |
 
-### Conversion Tools (16)
+### Conversion Tools (18)
 | Tool | Description |
 |------|-------------|
 | **Unix Timestamp** | Bidirectional conversion + live clock + timezone |
 | **URL Encode/Decode** | RFC 3986 / Form Data + URL parser |
 | **Base64 Encode/Decode** | Standard / URL-safe, bidirectional |
-| **JSON Formatter** | Format / minify / validate with indent options |
+| **JSON Formatter** | Format / minify / validate + JSONPath query (`$.a.b[0]`, `[*]`) |
 | **JSON - YAML** | Bidirectional converter, pure Swift YAML parser |
+| **JSON - CSV** | Bidirectional, header inference, RFC 4180 quoting |
+| **JSON - TOML** | Bidirectional — tables, nested tables, arrays of tables |
 | **UUID Generator** | Batch generate + decode UUID version/variant |
 | **Random String** | Configurable charset, length, batch generation |
 | **Number Base Converter** | Binary / Octal / Decimal / Hex |
@@ -54,6 +59,23 @@ Built with Swift 6, SwiftUI, and Liquid Glass (macOS 26+). Designed for develope
 | **Text Analyzer** | Characters / words / lines / sentences / paragraphs / bytes |
 | **Lorem Ipsum** | Generate placeholder text (words / sentences / paragraphs) |
 | **Text Diff** | Side-by-side comparison with LCS line diffing |
+
+### Developer Tools (7)
+| Tool | Description |
+|------|-------------|
+| **Regex Tester** | Live matches, capture groups, replacement, i/s/m/x flags |
+| **Cron Parser** | Parse 5-field cron → human description + next run times |
+| **Color Converter** | HEX ↔ RGB ↔ HSL ↔ HSB, picker, WCAG contrast (AA/AAA) |
+| **SQL Formatter** | Beautify / minify with keyword uppercasing |
+| **Unicode Inspector** | Code points, names, categories, UTF-8/16 bytes, invisible-char detection |
+| **Compression** | zlib / LZFSE / LZ4 / LZMA compress & decompress (Base64), shows ratio |
+| **.env ↔ JSON** | `.env` / `.ini` / `.properties` ↔ JSON, `[section]` → nested objects |
+
+### Generators (2)
+| Tool | Description |
+|------|-------------|
+| **QR Code** | Generate (correction levels, save PNG) + scan image via Vision |
+| **JSON → Code** | Generate Swift structs, TypeScript interfaces, or Go structs from JSON |
 
 ### Other Tools (3)
 | Tool | Description |
@@ -70,12 +92,14 @@ Built with Swift 6, SwiftUI, and Liquid Glass (macOS 26+). Designed for develope
 MacDevApp/                    # Main app target (SwiftUI)
 Packages/
   DevAppCore/                 # Shared protocols, views, utilities
-  CryptoTools/                # AES, RSA, Hash, HMAC
-  ConversionTools/            # All conversion/utility tools
-  APIClient/                  # HTTP client, scripts, history, saved APIs
+  CryptoTools/                # AES, RSA, Hash, HMAC, JWT, Certificate, KDF
+  ConversionTools/            # Conversion, Developer & Generator tools
+  APIClient/                  # HTTP client, WebSocket, Mock server, scripts
 ```
 
 Modules depend only on `DevAppCore`, never on each other.
+
+Press **⌘K** anywhere to open the command palette and jump to any tool. Right-click a tool in the sidebar to add it to **Favorites**; recently used tools surface automatically.
 
 ---
 

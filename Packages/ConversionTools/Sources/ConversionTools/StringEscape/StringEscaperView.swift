@@ -13,7 +13,8 @@ public struct StringEscaperView: View {
             title: "String Escape / Unescape",
             description: "Type in either panel — left escapes, right unescapes",
             input: $input, output: $output,
-            inputLabel: "Unescaped", outputLabel: "Escaped"
+            inputLabel: "Unescaped", outputLabel: "Escaped",
+            toolID: "string-escape"
         )
         .onChange(of: input) { _, newValue in
             guard !isUpdating else { return }

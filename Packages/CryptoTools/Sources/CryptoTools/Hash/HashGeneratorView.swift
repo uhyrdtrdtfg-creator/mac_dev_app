@@ -1,10 +1,16 @@
 import SwiftUI
+import AppKit
 import DevAppCore
 
 public struct HashGeneratorView: View {
     @State private var input = ""
     @State private var uppercase = false
     @State private var results: [HashAlgorithm: String] = [:]
+
+    // File checksum
+    @State private var fileName: String?
+    @State private var fileResults: [HashAlgorithm: String] = [:]
+    @State private var expected = ""
 
     public init() {}
 
@@ -64,10 +70,70 @@ public struct HashGeneratorView: View {
                     }
                 }
             }
+
+            Divider().padding(.vertical, 4)
+
+            // File checksum
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("File Checksum")
+                        .font(.caption).fontWeight(.semibold)
+                        .foregroundStyle(.secondary).textCase(.uppercase)
+                    Spacer()
+                    Button {
+                        chooseFile()
+                    } label: {
+                        Label(fileName ?? "Choose File…", systemImage: "doc.badge.plus")
+                    }
+                }
+
+                if !fileResults.isEmpty {
+                    ForEach(HashAlgorithm.allCases) { algorithm in
+                        let value = displayValue(fileResults[algorithm])
+                        HStack {
+                            Text(algorithm.rawValue).font(.caption).foregroundStyle(.secondary).frame(width: 60, alignment: .leading)
+                            Text(value).font(.system(.body, design: .monospaced))
+                                .textSelection(.enabled).lineLimit(1).truncationMode(.middle)
+                            if matchesExpected(value) {
+                                Image(systemName: "checkmark.seal.fill").foregroundStyle(.green)
+                            }
+                            Spacer()
+                            CopyButton(text: value)
+                        }
+                        .padding(8).background(.fill.tertiary).clipShape(RoundedRectangle(cornerRadius: 6))
+                    }
+
+                    TextField("Expected checksum to compare…", text: $expected)
+                        .font(.system(.caption, design: .monospaced))
+                        .textFieldStyle(.plain)
+                        .padding(8).background(.fill.tertiary).clipShape(RoundedRectangle(cornerRadius: 8))
+                }
+            }
         }
         .padding()
         .onChange(of: input) { _, _ in updateHashes() }
         .onChange(of: uppercase) { _, _ in updateHashes() }
+    }
+
+    private func displayValue(_ raw: String?) -> String {
+        guard let raw else { return "" }
+        return uppercase ? raw.uppercased() : raw
+    }
+
+    private func matchesExpected(_ value: String) -> Bool {
+        let trimmed = expected.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return false }
+        return value.caseInsensitiveCompare(trimmed) == .orderedSame
+    }
+
+    private func chooseFile() {
+        let panel = NSOpenPanel()
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        guard let data = try? Data(contentsOf: url) else { return }
+        fileName = url.lastPathComponent
+        fileResults = HashGenerator.hashAll(data: data)
     }
 
     private func displayResult(for algorithm: HashAlgorithm) -> String {

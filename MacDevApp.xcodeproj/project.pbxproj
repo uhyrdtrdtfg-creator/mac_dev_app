@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		4B59BED42E70A263295E3439 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 8735535E3603F195334E2057 /* Assets.xcassets */; };
 		4DE74DA367029D09DFCD254A /* DevAppCore in Frameworks */ = {isa = PBXBuildFile; productRef = 57ED970735B49D8092D048C3 /* DevAppCore */; };
+		518ECCB85A7F9E6136E74A9C /* CommandPaletteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2921089A0DA94DD7288E221 /* CommandPaletteView.swift */; };
 		521F98159BE0282B51CF419E /* APIClient in Frameworks */ = {isa = PBXBuildFile; productRef = 9DE7889CBAD97C4D6D6BCAA2 /* APIClient */; };
 		59E9EF15705C7B06F77B2398 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 42E07871FD70E8ADD1391DD0 /* Sparkle */; };
 		5A490AE1135C4CFE56DA9C0F /* ToolRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F706069CE7F18A563EE0C51 /* ToolRegistry.swift */; };
@@ -16,22 +17,25 @@
 		8255F9EF2C310D0A33E11975 /* ConversionTools in Frameworks */ = {isa = PBXBuildFile; productRef = A3F5C5CB95BF15643BDF5556 /* ConversionTools */; };
 		828FA96AF9904E6712E8ADDA /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 416716C1D6CE01CEC7F1B54A /* ContentView.swift */; };
 		8622C0BDBF3776D2B47D428A /* SidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02E1C06628B8BDA10F824E4B /* SidebarView.swift */; };
+		C0E171F1F29C7D5A4161C6F7 /* CloudSyncService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 439FD998651B63E78B6551FE /* CloudSyncService.swift */; };
 		F158617A1B87E20DFF2586FE /* MacDevAppApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 12930FBF61F663189B00F108 /* MacDevAppApp.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		02E1C06628B8BDA10F824E4B /* SidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarView.swift; sourceTree = "<group>"; };
 		12930FBF61F663189B00F108 /* MacDevAppApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacDevAppApp.swift; sourceTree = "<group>"; };
-		1D1046D82F98BE2300364882 /* MacDevAppRelease.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = MacDevAppRelease.entitlements; sourceTree = "<group>"; };
 		3A7560D3064F0BB5D09A8369 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		3F706069CE7F18A563EE0C51 /* ToolRegistry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolRegistry.swift; sourceTree = "<group>"; };
 		416716C1D6CE01CEC7F1B54A /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		439FD998651B63E78B6551FE /* CloudSyncService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudSyncService.swift; sourceTree = "<group>"; };
+		54AF5FF52D3BB2C875D334DE /* MacDevAppRelease.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = MacDevAppRelease.entitlements; sourceTree = "<group>"; };
 		69CCE1504D3EB106B6843F2E /* DevAppCore */ = {isa = PBXFileReference; lastKnownFileType = folder; name = DevAppCore; path = Packages/DevAppCore; sourceTree = SOURCE_ROOT; };
 		85631AA68C1015BA40C866C6 /* CryptoTools */ = {isa = PBXFileReference; lastKnownFileType = folder; name = CryptoTools; path = Packages/CryptoTools; sourceTree = SOURCE_ROOT; };
 		8735535E3603F195334E2057 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
-		AF5E3409A2C10A159200986C /* DevToolkit.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = DevToolkit.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		AF5E3409A2C10A159200986C /* MacDevApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MacDevApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		B6A6BFC4E38853FF311C2064 /* ConversionTools */ = {isa = PBXFileReference; lastKnownFileType = folder; name = ConversionTools; path = Packages/ConversionTools; sourceTree = SOURCE_ROOT; };
 		D379F33ACF26F897EA64A046 /* APIClient */ = {isa = PBXFileReference; lastKnownFileType = folder; name = APIClient; path = Packages/APIClient; sourceTree = SOURCE_ROOT; };
+		E2921089A0DA94DD7288E221 /* CommandPaletteView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandPaletteView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -53,7 +57,7 @@
 		1EBEC6D3624C294F8079408A /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				AF5E3409A2C10A159200986C /* DevToolkit.app */,
+				AF5E3409A2C10A159200986C /* MacDevApp.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -61,12 +65,13 @@
 		378FC95743AD29A68247DC07 /* MacDevApp */ = {
 			isa = PBXGroup;
 			children = (
-				1D1046D82F98BE2300364882 /* MacDevAppRelease.entitlements */,
 				8735535E3603F195334E2057 /* Assets.xcassets */,
 				416716C1D6CE01CEC7F1B54A /* ContentView.swift */,
 				3A7560D3064F0BB5D09A8369 /* Info.plist */,
 				12930FBF61F663189B00F108 /* MacDevAppApp.swift */,
+				54AF5FF52D3BB2C875D334DE /* MacDevAppRelease.entitlements */,
 				5031BCF6CD4DA8709032BC95 /* Navigation */,
+				A5056AE4B615A84B04280170 /* Services */,
 			);
 			path = MacDevApp;
 			sourceTree = "<group>";
@@ -74,10 +79,19 @@
 		5031BCF6CD4DA8709032BC95 /* Navigation */ = {
 			isa = PBXGroup;
 			children = (
+				E2921089A0DA94DD7288E221 /* CommandPaletteView.swift */,
 				02E1C06628B8BDA10F824E4B /* SidebarView.swift */,
 				3F706069CE7F18A563EE0C51 /* ToolRegistry.swift */,
 			);
 			path = Navigation;
+			sourceTree = "<group>";
+		};
+		A5056AE4B615A84B04280170 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				439FD998651B63E78B6551FE /* CloudSyncService.swift */,
+			);
+			path = Services;
 			sourceTree = "<group>";
 		};
 		B7B6FC77FBFB5B5C488FB2C6 = {
@@ -124,7 +138,7 @@
 				42E07871FD70E8ADD1391DD0 /* Sparkle */,
 			);
 			productName = MacDevApp;
-			productReference = AF5E3409A2C10A159200986C /* DevToolkit.app */;
+			productReference = AF5E3409A2C10A159200986C /* MacDevApp.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -135,6 +149,8 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1600;
+				TargetAttributes = {
+				};
 			};
 			buildConfigurationList = 78886CA03A32C34ED44A9D9D /* Build configuration list for PBXProject "MacDevApp" */;
 			developmentRegion = en;
@@ -178,6 +194,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				C0E171F1F29C7D5A4161C6F7 /* CloudSyncService.swift in Sources */,
+				518ECCB85A7F9E6136E74A9C /* CommandPaletteView.swift in Sources */,
 				828FA96AF9904E6712E8ADDA /* ContentView.swift in Sources */,
 				F158617A1B87E20DFF2586FE /* MacDevAppApp.swift in Sources */,
 				8622C0BDBF3776D2B47D428A /* SidebarView.swift in Sources */,
@@ -192,12 +210,8 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_ENTITLEMENTS = MacDevApp/MacDevAppRelease.entitlements;
-				CODE_SIGN_IDENTITY = "Apple Development";
-				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 4257SFGRFK;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = MacDevApp/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -205,10 +219,9 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 1.2.7;
+				MARKETING_VERSION = 1.0.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.macdevapp.MacDevApp;
 				PRODUCT_NAME = DevToolkit;
-				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = macosx;
 				SWIFT_VERSION = 6.0;
 			};
@@ -218,11 +231,8 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_IDENTITY = "Apple Development";
-				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 4257SFGRFK;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = MacDevApp/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -230,10 +240,9 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 1.2.7;
+				MARKETING_VERSION = 1.0.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.macdevapp.MacDevApp;
 				PRODUCT_NAME = DevToolkit;
-				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = macosx;
 				SWIFT_VERSION = 6.0;
 			};

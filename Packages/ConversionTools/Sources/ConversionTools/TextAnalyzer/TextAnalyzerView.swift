@@ -2,6 +2,7 @@ import SwiftUI
 import DevAppCore
 
 public struct TextAnalyzerView: View {
+    @Environment(\.toolHandoff) private var handoff
     @State private var input = ""
     @State private var stats = TextAnalyzer.analyze("")
     public init() {}
@@ -29,6 +30,10 @@ public struct TextAnalyzerView: View {
                 .overlay(RoundedRectangle(cornerRadius: 8).stroke(.separator, lineWidth: 0.5))
         }
         .padding(20)
+        .onAppear {
+            if let incoming = handoff.consume("text-analyzer") { input = incoming }
+            stats = TextAnalyzer.analyze(input)
+        }
         .onChange(of: input) { _, _ in stats = TextAnalyzer.analyze(input) }
     }
 

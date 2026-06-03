@@ -13,7 +13,8 @@ public struct HTMLEntityCodecView: View {
             title: "HTML Entity Encode / Decode",
             description: "Type in either panel — left encodes, right decodes",
             input: $input, output: $output,
-            inputLabel: "Plain Text", outputLabel: "HTML Entities"
+            inputLabel: "Plain Text", outputLabel: "HTML Entities",
+            toolID: "html-entity"
         )
         .onChange(of: input) { _, newValue in
             guard !isUpdating else { return }

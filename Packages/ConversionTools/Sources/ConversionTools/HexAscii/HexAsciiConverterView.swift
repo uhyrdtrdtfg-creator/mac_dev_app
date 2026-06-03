@@ -13,7 +13,8 @@ public struct HexAsciiConverterView: View {
             title: "Hex / ASCII Converter",
             description: "Type in either panel — left converts to hex, right converts to ASCII",
             input: $input, output: $output,
-            inputLabel: "ASCII Text", outputLabel: "Hex"
+            inputLabel: "ASCII Text", outputLabel: "Hex",
+            toolID: "hex-ascii"
         )
         .onChange(of: input) { _, newValue in
             guard !isUpdating else { return }

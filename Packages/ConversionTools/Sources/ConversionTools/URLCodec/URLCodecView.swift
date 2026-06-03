@@ -18,7 +18,8 @@ public struct URLCodecView: View {
                 input: $input,
                 output: $output,
                 inputLabel: "Decoded",
-                outputLabel: "Encoded"
+                outputLabel: "Encoded",
+                toolID: "url-codec"
             ) {
                 Picker("Standard", selection: $standard) {
                     ForEach(URLEncodingStandard.allCases) { s in Text(s.rawValue).tag(s) }
