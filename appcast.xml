@@ -91,5 +91,13 @@
             <pubDate>Fri, 24 Apr 2026 12:21:41 +0000</pubDate>
             <enclosure url="https://github.com/uhyrdtrdtfg-creator/mac_dev_app/releases/download/v1.2.8/DevToolkit.zip" type="application/octet-stream" sparkle:edSignature="VKxKVsGgP32fdtFP5S97syFy70Zw/ZSKQjjRQLWQcTlXEvFnuYM9IlBe20jErl/AdwEnbY06opWGUfKlaBggBQ==" length="3407102" />
         </item>
+        <item>
+            <title>Version 1.3.0</title>
+            <sparkle:version>104</sparkle:version>
+            <sparkle:shortVersionString>1.3.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>26.0</sparkle:minimumSystemVersion>
+            <pubDate>Wed, 03 Jun 2026 04:09:15 +0000</pubDate>
+            <enclosure url="https://github.com/uhyrdtrdtfg-creator/mac_dev_app/releases/download/v1.3.0/DevToolkit.zip" type="application/octet-stream" sparkle:edSignature="UO/MEDTR70QyE5FwwkMdpNYATQYi23Ig/McAf3QqOxL7WsauLZs0NZ3CgNe8ds8WzyPUqqn+w/QOseTzmIzLAQ==" length="4262204" />
+        </item>
     </channel>
 </rss>
