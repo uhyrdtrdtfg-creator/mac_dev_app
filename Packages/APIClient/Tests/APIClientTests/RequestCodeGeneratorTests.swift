@@ -61,7 +61,7 @@ private let tricky = CodeGenRequest(
 
 @Test func jsFetchJSONBody() {
     let code = RequestCodeGenerator.generate(.jsFetch, request: tricky)
-    #expect(code.contains("JSON.stringify("))
+    #expect(code.contains("body: `"))
     #expect(code.contains("await fetch("))
     #expect(code.contains("\"Authorization\": \"Bearer tok123\""))
     #expect(code.contains("(async () => {"))
@@ -72,8 +72,42 @@ private let tricky = CodeGenRequest(
     let code = RequestCodeGenerator.generate(.nodeAxios, request: tricky)
     #expect(code.contains("require(\"axios\")"))
     #expect(code.contains("method: \"post\""))
-    #expect(code.contains("data: {"))
+    #expect(code.contains("data: `"))
     #expect(code.contains("\"Authorization\": \"Bearer tok123\""))
+}
+
+@Test func jsonBodyNeverInlinedAsObjectLiteral() {
+    // Object-literal inlining drops __proto__, collapses duplicate keys, and
+    // rounds big numbers — the body must stay a byte-faithful string literal.
+    let request = CodeGenRequest(method: .post, url: "https://x.dev/", body: .json("{\"__proto__\": {\"x\": 1}, \"big\": 9007199254740993}"))
+    for lang in [CodeGenLanguage.jsFetch, .nodeAxios] {
+        let code = RequestCodeGenerator.generate(lang, request: request)
+        #expect(code.contains("`{\"__proto__\""), "\(lang.rawValue) must keep the raw JSON text")
+        #expect(code.contains("9007199254740993"))
+    }
+}
+
+@Test func crlfBodyStaysByteFaithful() {
+    let request = CodeGenRequest(method: .post, url: "https://x.dev/", body: .raw("a\r\nb\rc"))
+    // Multiline/raw literals silently normalize CR — all languages must fall back
+    // to single-line escaped literals carrying explicit \r escapes.
+    let swift = RequestCodeGenerator.generate(.swiftURLSession, request: request)
+    #expect(swift.contains(#"let body = "a\r\nb\rc""#))
+    let python = RequestCodeGenerator.generate(.pythonRequests, request: request)
+    #expect(python.contains(#"data = 'a\r\nb\rc'"#))
+    let fetch = RequestCodeGenerator.generate(.jsFetch, request: request)
+    #expect(fetch.contains(#"body: "a\r\nb\rc""#))
+    let go = RequestCodeGenerator.generate(.goNetHTTP, request: request)
+    #expect(go.contains(#"strings.NewReader("a\r\nb\rc")"#))
+    #expect(!go.contains("`"))
+}
+
+@Test func crlfInHeaderValueEscaped() {
+    let request = CodeGenRequest(method: .get, url: "https://x.dev/", headers: [KeyValuePair(key: "X-Weird", value: "a\r\nb")])
+    for lang in CodeGenLanguage.allCases {
+        let code = RequestCodeGenerator.generate(lang, request: request)
+        #expect(code.contains(#"a\r\nb"#), "\(lang.rawValue) must escape CRLF in header values")
+    }
 }
 
 @Test func goJSONBody() {
@@ -114,16 +148,20 @@ private let tricky = CodeGenRequest(
 // MARK: - Form data
 
 @Test func formDataAllLanguages() {
+    // The app sends form pairs joined raw (no percent-escaping, duplicates kept) —
+    // generated code must mirror those bytes, so no dicts/URLSearchParams.
     let request = CodeGenRequest(method: .post, url: "https://x.dev/login", body: .formData([
-        KeyValuePair(key: "user", value: "alice"), KeyValuePair(key: "pw", value: "s3cret"),
+        KeyValuePair(key: "user", value: "a b"), KeyValuePair(key: "tag", value: "one"),
+        KeyValuePair(key: "tag", value: "二"),
     ]))
+    let expected = "user=a b&tag=one&tag=二"
     let swift = RequestCodeGenerator.generate(.swiftURLSession, request: request)
-    #expect(swift.contains("user=alice&pw=s3cret"))
+    #expect(swift.contains(expected))
     #expect(swift.contains("application/x-www-form-urlencoded"))
-    #expect(RequestCodeGenerator.generate(.pythonRequests, request: request).contains("'user': 'alice'"))
-    #expect(RequestCodeGenerator.generate(.jsFetch, request: request).contains("new URLSearchParams({"))
-    #expect(RequestCodeGenerator.generate(.nodeAxios, request: request).contains("new URLSearchParams({"))
-    #expect(RequestCodeGenerator.generate(.goNetHTTP, request: request).contains("user=alice&pw=s3cret"))
+    #expect(RequestCodeGenerator.generate(.pythonRequests, request: request).contains("data = '\(expected)'"))
+    #expect(RequestCodeGenerator.generate(.jsFetch, request: request).contains("body: \"\(expected)\""))
+    #expect(RequestCodeGenerator.generate(.nodeAxios, request: request).contains("data: \"\(expected)\""))
+    #expect(RequestCodeGenerator.generate(.goNetHTTP, request: request).contains(expected))
 }
 
 // MARK: - Fallbacks
@@ -195,6 +233,21 @@ private func syntaxCheck(_ code: String, ext: String, command: [String]) throws 
     guard FileManager.default.fileExists(atPath: "/usr/bin/python3") else { return }
     let code = RequestCodeGenerator.generate(.pythonRequests, request: tricky)
     #expect(try syntaxCheck(code, ext: "py", command: ["/usr/bin/python3", "-m", "py_compile"]))
+}
+
+@Test func generatedGoCompiles() throws {
+    let goPaths = ["/usr/local/go/bin/go", "/opt/homebrew/bin/go"]
+    guard let go = goPaths.first(where: { FileManager.default.fileExists(atPath: $0) }) else { return }
+    let crlfRequest = CodeGenRequest(
+        method: .post, url: "https://x.dev/items",
+        headers: [KeyValuePair(key: "X-W", value: "v1\r\nv2")],
+        body: .raw("a\r\nb\rc\nd `tick` ${x}"),
+        auth: .basicAuth(username: "u", password: "p")
+    )
+    for request in [tricky, crlfRequest] {
+        let code = RequestCodeGenerator.generate(.goNetHTTP, request: request)
+        #expect(try syntaxCheck(code, ext: "go", command: [go, "build", "-o", "/dev/null"]), "Go snippet failed to compile")
+    }
 }
 
 @Test func generatedJSParses() throws {

@@ -75,9 +75,14 @@ public enum RequestCodeGenerator {
             queryItems.append(URLQueryItem(name: key, value: value))
         }
         var url = request.url
-        if !queryItems.isEmpty, var components = URLComponents(string: request.url) {
-            components.queryItems = (components.queryItems ?? []) + queryItems
-            url = components.url?.absoluteString ?? request.url
+        if !queryItems.isEmpty {
+            if var components = URLComponents(string: request.url) {
+                components.queryItems = (components.queryItems ?? []) + queryItems
+                url = components.url?.absoluteString ?? request.url
+            } else {
+                let raw = queryItems.map { "\($0.name)=\($0.value ?? "")" }.joined(separator: "&")
+                url = request.url + (request.url.contains("?") ? "&" : "?") + raw
+            }
         }
 
         var headers: [(String, String)] = request.headers
@@ -141,13 +146,13 @@ public enum RequestCodeGenerator {
             lines.append("request.setValue(\(swiftString(value)), forHTTPHeaderField: \(swiftString(key)))")
         }
         if let json = plan.jsonBody {
-            lines.append("let body = \(swiftRawString(json))")
+            lines.append("let body = \(swiftBodyLiteral(json))")
             lines.append("request.httpBody = Data(body.utf8)")
         } else if let pairs = plan.formPairs {
             lines.append("let body = \(swiftString(formEncoded(pairs)))")
             lines.append("request.httpBody = Data(body.utf8)")
         } else if let raw = plan.rawBody {
-            lines.append("let body = \(swiftRawString(raw))")
+            lines.append("let body = \(swiftBodyLiteral(raw))")
             lines.append("request.httpBody = Data(body.utf8)")
         } else if let count = plan.binaryByteCount {
             lines.append("// Binary body (\(count) bytes) — load it from a file:")
@@ -178,18 +183,18 @@ public enum RequestCodeGenerator {
             callArgs.append("headers=headers")
         }
         if let json = jsonPayload {
-            lines.append("payload = json.loads(\(pythonTripleString(json)))")
+            lines.append("# requests re-serializes this JSON (key order/whitespace/escapes may differ);")
+            lines.append("# pass data=<raw string> instead if byte-identical bodies matter.")
+            lines.append("payload = json.loads(\(pythonBodyLiteral(json)))")
             callArgs.append("json=payload")
         } else if let json = plan.jsonBody {
-            lines.append("data = \(pythonTripleString(json))")
+            lines.append("data = \(pythonBodyLiteral(json))")
             callArgs.append("data=data")
         } else if let pairs = plan.formPairs {
-            lines.append("data = {")
-            for (key, value) in pairs { lines.append("    \(pythonString(key)): \(pythonString(value)),") }
-            lines.append("}")
+            lines.append("data = \(pythonString(formEncoded(pairs)))")
             callArgs.append("data=data")
         } else if let raw = plan.rawBody {
-            lines.append("data = \(pythonTripleString(raw))")
+            lines.append("data = \(pythonBodyLiteral(raw))")
             callArgs.append("data=data")
         } else if let count = plan.binaryByteCount {
             lines.append("# Binary body (\(count) bytes) — load it from a file:")
@@ -210,36 +215,28 @@ public enum RequestCodeGenerator {
 
     private static func jsFetch(_ request: CodeGenRequest) -> String {
         let plan = plan(for: request, nativeBasicAuth: false)
-        var lines: [String] = []
-        var options = ["  method: \(jsString(plan.method)),"]
+        // Top-level await only parses as a module, so wrap in an async IIFE.
+        // Multi-line body literals are appended verbatim — never re-indent them.
+        var lines = ["(async () => {"]
+        lines.append("  const response = await fetch(\(jsString(plan.url)), {")
+        lines.append("    method: \(jsString(plan.method)),")
         if !plan.headers.isEmpty {
-            var headerLines = ["  headers: {"]
-            for (key, value) in plan.headers { headerLines.append("    \(jsString(key)): \(jsString(value)),") }
-            headerLines.append("  },")
-            options.append(headerLines.joined(separator: "\n"))
+            lines.append("    headers: {")
+            for (key, value) in plan.headers { lines.append("      \(jsString(key)): \(jsString(value)),") }
+            lines.append("    },")
         }
-        if let json = plan.jsonBody, validJSON(json) != nil {
-            options.append("  body: JSON.stringify(\(indentJSONLiteral(json, by: "  "))),")
-        } else if let json = plan.jsonBody {
-            options.append("  body: \(jsTemplateString(json)),")
+        if let body = plan.jsonBody ?? plan.rawBody {
+            lines.append("    body: \(jsBodyLiteral(body)),")
         } else if let pairs = plan.formPairs {
-            var formLines = ["  body: new URLSearchParams({"]
-            for (key, value) in pairs { formLines.append("    \(jsString(key)): \(jsString(value)),") }
-            formLines.append("  }),")
-            options.append(formLines.joined(separator: "\n"))
-        } else if let raw = plan.rawBody {
-            options.append("  body: \(jsTemplateString(raw)),")
+            lines.append("    body: \(jsString(formEncoded(pairs))),")
         } else if let count = plan.binaryByteCount {
-            options.append("  // Binary body (\(count) bytes) — pass a Blob/Buffer here.")
+            lines.append("    // Binary body (\(count) bytes) — pass a Blob/Buffer here.")
         }
-
-        lines.append("const response = await fetch(\(jsString(plan.url)), {")
-        lines.append(options.joined(separator: "\n"))
-        lines.append("});")
-        lines.append("console.log(response.status);")
-        lines.append("console.log(await response.text());")
-        // Top-level await only parses as a module; keep the snippet runnable anywhere.
-        return "(async () => {\n" + lines.joined(separator: "\n").split(separator: "\n").map { "  \($0)" }.joined(separator: "\n") + "\n})();"
+        lines.append("  });")
+        lines.append("  console.log(response.status);")
+        lines.append("  console.log(await response.text());")
+        lines.append("})();")
+        return lines.joined(separator: "\n")
     }
 
     // MARK: - Node.js (axios)
@@ -257,17 +254,10 @@ public enum RequestCodeGenerator {
             headerLines.append("    },")
             options.append(headerLines.joined(separator: "\n"))
         }
-        if let json = plan.jsonBody, validJSON(json) != nil {
-            options.append("    data: \(indentJSONLiteral(json, by: "    ")),")
-        } else if let json = plan.jsonBody {
-            options.append("    data: \(jsTemplateString(json)),")
+        if let body = plan.jsonBody ?? plan.rawBody {
+            options.append("    data: \(jsBodyLiteral(body)),")
         } else if let pairs = plan.formPairs {
-            var formLines = ["    data: new URLSearchParams({"]
-            for (key, value) in pairs { formLines.append("      \(jsString(key)): \(jsString(value)),") }
-            formLines.append("    }),")
-            options.append(formLines.joined(separator: "\n"))
-        } else if let raw = plan.rawBody {
-            options.append("    data: \(jsTemplateString(raw)),")
+            options.append("    data: \(jsString(formEncoded(pairs))),")
         } else if let count = plan.binaryByteCount {
             options.append("    // Binary body (\(count) bytes) — pass a Buffer here.")
         }
@@ -353,19 +343,25 @@ public enum RequestCodeGenerator {
         pairs.map { "\($0.0)=\($0.1)" }.joined(separator: "&")
     }
 
-    private static func escapeCommon(_ text: String, quote: Character) -> String {
+    /// Escapes at the unicode-scalar level: grapheme-cluster iteration would treat
+    /// CRLF as a single Character and let raw CR/LF bytes leak into the literal.
+    private static func escapeCommon(_ text: String, quote: Unicode.Scalar) -> String {
         var out = ""
-        for char in text {
-            switch char {
+        for scalar in text.unicodeScalars {
+            switch scalar {
             case "\\": out += "\\\\"
             case quote: out += "\\\(quote)"
             case "\n": out += "\\n"
             case "\r": out += "\\r"
             case "\t": out += "\\t"
-            default: out.append(char)
+            default: out.unicodeScalars.append(scalar)
             }
         }
         return out
+    }
+
+    private static func containsCR(_ text: String) -> Bool {
+        text.unicodeScalars.contains("\r")
     }
 
     private static func swiftString(_ text: String) -> String { "\"\(escapeCommon(text, quote: "\""))\"" }
@@ -379,8 +375,13 @@ public enum RequestCodeGenerator {
         return "\"\(escaped)\""
     }
 
+    // Body literals: multiline forms read best, but every target language silently
+    // normalizes raw CR/CRLF inside them — fall back to a single-line escaped
+    // literal whenever the body contains CR so the sent bytes match the app's.
+
     /// Multiline Swift raw string with enough `#` delimiters to contain the text verbatim.
-    private static func swiftRawString(_ text: String) -> String {
+    private static func swiftBodyLiteral(_ text: String) -> String {
+        if containsCR(text) { return swiftString(text) }
         var hashes = "#"
         while text.contains("\"\"\"\(hashes)") || text.contains("\\\(hashes)") { hashes += "#" }
         return "\(hashes)\"\"\"\n\(text)\n\"\"\"\(hashes)"
@@ -388,7 +389,8 @@ public enum RequestCodeGenerator {
 
     /// Python triple-quoted string; escapes backslashes and double quotes so the
     /// content can never terminate the literal early.
-    private static func pythonTripleString(_ text: String) -> String {
+    private static func pythonBodyLiteral(_ text: String) -> String {
+        if containsCR(text) { return pythonString(text) }
         let escaped = text
             .replacingOccurrences(of: "\\", with: "\\\\")
             .replacingOccurrences(of: "\"", with: "\\\"")
@@ -396,7 +398,8 @@ public enum RequestCodeGenerator {
     }
 
     /// JS template literal escaping backticks and interpolation.
-    private static func jsTemplateString(_ text: String) -> String {
+    private static func jsBodyLiteral(_ text: String) -> String {
+        if containsCR(text) { return jsString(text) }
         var escaped = text
             .replacingOccurrences(of: "\\", with: "\\\\")
             .replacingOccurrences(of: "`", with: "\\`")
@@ -406,19 +409,10 @@ public enum RequestCodeGenerator {
         return "`\(escaped)`"
     }
 
-    /// Inlines validated JSON text as a JS object literal, indenting continuation lines.
-    private static func indentJSONLiteral(_ json: String, by indent: String) -> String {
-        let sanitized = json
-            .replacingOccurrences(of: "\u{2028}", with: "\\u2028")
-            .replacingOccurrences(of: "\u{2029}", with: "\\u2029")
-        let lines = sanitized.split(separator: "\n", omittingEmptySubsequences: false)
-        guard lines.count > 1 else { return sanitized }
-        return lines.enumerated().map { $0.offset == 0 ? String($0.element) : indent + $0.element }.joined(separator: "\n")
-    }
-
-    /// Go body literal: backtick raw string when possible, interpreted string otherwise.
+    /// Go body literal: backtick raw string when possible (raw literals drop CR),
+    /// interpreted string otherwise.
     private static func goBodyString(_ text: String) -> String {
-        if !text.contains("`") && !text.contains("\r") { return "`\(text)`" }
+        if !text.unicodeScalars.contains("`") && !containsCR(text) { return "`\(text)`" }
         return goString(text)
     }
 }
