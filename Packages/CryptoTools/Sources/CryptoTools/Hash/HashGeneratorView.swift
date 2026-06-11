@@ -20,7 +20,7 @@ public struct HashGeneratorView: View {
                 Text("Hash Generator")
                     .font(.title2)
                     .fontWeight(.semibold)
-                Text("Generate MD5, SHA-1, SHA-256, SHA-512 hashes")
+                Text("Generate MD5, SHA-1, SHA-256, SHA-512, SHA3-256, SHA3-512, CRC32 hashes")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
@@ -55,7 +55,7 @@ public struct HashGeneratorView: View {
                             Text(algorithm.rawValue)
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
-                                .frame(width: 60, alignment: .leading)
+                                .frame(width: 70, alignment: .leading)
                             Text(displayResult(for: algorithm))
                                 .font(.system(.body, design: .monospaced))
                                 .textSelection(.enabled)
@@ -91,7 +91,7 @@ public struct HashGeneratorView: View {
                     ForEach(HashAlgorithm.allCases) { algorithm in
                         let value = displayValue(fileResults[algorithm])
                         HStack {
-                            Text(algorithm.rawValue).font(.caption).foregroundStyle(.secondary).frame(width: 60, alignment: .leading)
+                            Text(algorithm.rawValue).font(.caption).foregroundStyle(.secondary).frame(width: 70, alignment: .leading)
                             Text(value).font(.system(.body, design: .monospaced))
                                 .textSelection(.enabled).lineLimit(1).truncationMode(.middle)
                             if matchesExpected(value) {
@@ -152,6 +152,6 @@ extension HashGeneratorView {
         name: "Hash Generator",
         icon: "number",
         category: .crypto,
-        searchKeywords: ["hash", "md5", "sha", "sha1", "sha256", "sha512", "digest", "checksum", "哈希", "摘要"]
+        searchKeywords: ["hash", "md5", "sha", "sha1", "sha256", "sha512", "sha3", "crc", "crc32", "digest", "checksum", "哈希", "摘要"]
     )
 }

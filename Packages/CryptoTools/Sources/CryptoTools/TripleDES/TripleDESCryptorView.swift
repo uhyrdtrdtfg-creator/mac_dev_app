@@ -1,14 +1,13 @@
 import SwiftUI
 import DevAppCore
 
-public struct AESCryptorView: View {
+public struct TripleDESCryptorView: View {
     @State private var input = ""
     @State private var output = ""
     @State private var keyHex = ""
     @State private var ivHex = ""
-    @State private var mode: AESMode = .cbc
-    @State private var keyBits: AESKeyBits = .bits256
-    @State private var padding: AESPadding = .pkcs7
+    @State private var mode: TripleDESMode = .cbc
+    @State private var padding: TripleDESPadding = .pkcs7
     @State private var outputFormat: OutputFormat = .base64
     @State private var errorMessage: String?
 
@@ -23,30 +22,23 @@ public struct AESCryptorView: View {
     public var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
-                Text("AES Encrypt / Decrypt").font(.title2).fontWeight(.semibold)
-                Text("Symmetric encryption with ECB, CBC, GCM, and CTR modes").font(.subheadline).foregroundStyle(.secondary)
+                Text("3DES Encrypt / Decrypt").font(.title2).fontWeight(.semibold)
+                Text("Triple DES symmetric encryption with ECB and CBC modes").font(.subheadline).foregroundStyle(.secondary)
+                Text("3DES is legacy — prefer AES for new systems").font(.caption).foregroundStyle(.orange)
             }
 
             HStack(spacing: 16) {
                 Picker("Mode", selection: $mode) {
-                    ForEach(AESMode.allCases) { m in Text(m.rawValue).tag(m) }
+                    ForEach(TripleDESMode.allCases) { m in Text(m.rawValue).tag(m) }
                 }
                 .pickerStyle(.menu)
                 .fixedSize()
 
-                Picker("Key Size", selection: $keyBits) {
-                    ForEach(AESKeyBits.allCases) { b in Text("\(b.rawValue) bit").tag(b) }
+                Picker("Padding", selection: $padding) {
+                    ForEach(TripleDESPadding.allCases) { p in Text(p.rawValue).tag(p) }
                 }
                 .pickerStyle(.menu)
                 .fixedSize()
-
-                if mode != .gcm && mode != .ctr {
-                    Picker("Padding", selection: $padding) {
-                        ForEach(AESPadding.allCases) { p in Text(p.rawValue).tag(p) }
-                    }
-                    .pickerStyle(.menu)
-                    .fixedSize()
-                }
 
                 Picker("Output Format", selection: $outputFormat) {
                     ForEach(OutputFormat.allCases) { f in Text(f.rawValue).tag(f) }
@@ -57,12 +49,12 @@ public struct AESCryptorView: View {
 
             HStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Key (Hex)").font(.caption).foregroundStyle(.secondary).textCase(.uppercase)
+                    Text("Key (Hex, 24 bytes)").font(.caption).foregroundStyle(.secondary).textCase(.uppercase)
                     TextField("Enter key in hex...", text: $keyHex).font(.system(.body, design: .monospaced)).textFieldStyle(.plain).padding(8).background(.fill.tertiary).clipShape(RoundedRectangle(cornerRadius: 8))
                 }
                 if mode != .ecb {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("IV (Hex)").font(.caption).foregroundStyle(.secondary).textCase(.uppercase)
+                        Text("IV (Hex, 8 bytes)").font(.caption).foregroundStyle(.secondary).textCase(.uppercase)
                         TextField("Enter IV in hex...", text: $ivHex).font(.system(.body, design: .monospaced)).textFieldStyle(.plain).padding(8).background(.fill.tertiary).clipShape(RoundedRectangle(cornerRadius: 8))
                     }
                 }
@@ -92,57 +84,43 @@ public struct AESCryptorView: View {
     }
 
     private func generateRandomKeyIV() {
-        let key = AESCryptor.generateRandomKey(bits: keyBits.rawValue)
-        keyHex = key.map { String(format: "%02x", $0) }.joined()
+        keyHex = TripleDESCryptor.generateRandomKey().hexString()
         if mode != .ecb {
-            let ivSize = mode == .gcm ? 12 : 16
-            let iv = AESCryptor.generateRandomIV(byteCount: ivSize)
-            ivHex = iv.map { String(format: "%02x", $0) }.joined()
+            ivHex = TripleDESCryptor.generateRandomIV().hexString()
         }
     }
 
     private func encrypt() {
         errorMessage = nil
-        guard let key = Data(hexString: keyHex), key.count == keyBits.byteCount else { errorMessage = "Invalid key. Expected \(keyBits.byteCount * 2) hex characters."; return }
+        guard let key = Data(hexString: keyHex), key.count == 24 else { errorMessage = "Invalid key. Expected 48 hex characters (24 bytes)."; return }
         let iv: Data? = mode != .ecb ? Data(hexString: ivHex) : nil
-        if mode == .cbc || mode == .ctr, iv?.count != 16 { errorMessage = "Invalid IV. Expected 32 hex characters (16 bytes)."; return }
+        if mode == .cbc, iv?.count != 8 { errorMessage = "Invalid IV. Expected 16 hex characters (8 bytes)."; return }
         do {
-            let result = try AESCryptor.encrypt(plaintext: input, key: key, mode: mode, iv: iv, padding: padding)
+            let result = try TripleDESCryptor.encrypt(plaintext: input, key: key, mode: mode, iv: iv, padding: padding)
             switch outputFormat {
-            case .hex: output = result.ciphertext.map { String(format: "%02x", $0) }.joined()
+            case .hex: output = result.ciphertext.hexString()
             case .base64: output = result.ciphertext.base64EncodedString()
-            }
-            if mode == .gcm, let nonce = result.iv, let tag = result.tag {
-                ivHex = nonce.map { String(format: "%02x", $0) }.joined()
-                output += "\n[Tag: \(tag.map { String(format: "%02x", $0) }.joined())]"
             }
         } catch { errorMessage = error.localizedDescription }
     }
 
     private func decrypt() {
         errorMessage = nil
-        guard let key = Data(hexString: keyHex), key.count == keyBits.byteCount else { errorMessage = "Invalid key."; return }
-        var ciphertextStr = output
-        var tagData: Data?
-        if mode == .gcm, let tagRange = output.range(of: "\\[Tag: ([a-fA-F0-9]+)\\]", options: .regularExpression) {
-            let tagHex = String(output[tagRange]).replacingOccurrences(of: "[Tag: ", with: "").replacingOccurrences(of: "]", with: "")
-            tagData = Data(hexString: tagHex)
-            ciphertextStr = String(output[output.startIndex..<tagRange.lowerBound]).trimmingCharacters(in: .whitespacesAndNewlines)
-        }
+        guard let key = Data(hexString: keyHex), key.count == 24 else { errorMessage = "Invalid key. Expected 48 hex characters (24 bytes)."; return }
         let ciphertext: Data
         switch outputFormat {
-        case .hex: guard let d = Data(hexString: ciphertextStr) else { errorMessage = "Invalid hex."; return }; ciphertext = d
-        case .base64: guard let d = Data(base64Encoded: ciphertextStr) else { errorMessage = "Invalid Base64."; return }; ciphertext = d
+        case .hex: guard let d = Data(hexString: output) else { errorMessage = "Invalid hex."; return }; ciphertext = d
+        case .base64: guard let d = Data(base64Encoded: output) else { errorMessage = "Invalid Base64."; return }; ciphertext = d
         }
         let iv = Data(hexString: ivHex)
-        do { input = try AESCryptor.decrypt(ciphertext: ciphertext, key: key, mode: mode, iv: iv, padding: padding, tag: tagData) }
+        do { input = try TripleDESCryptor.decrypt(ciphertext: ciphertext, key: key, mode: mode, iv: iv, padding: padding) }
         catch { errorMessage = error.localizedDescription }
     }
 }
 
-extension AESCryptorView {
+extension TripleDESCryptorView {
     public static let descriptor = ToolDescriptor(
-        id: "aes-cryptor", name: "AES Encrypt/Decrypt", icon: "lock.rectangle", category: .crypto,
-        searchKeywords: ["aes", "encrypt", "decrypt", "symmetric", "cbc", "ecb", "gcm", "ctr", "加密", "解密", "对称"]
+        id: "triple-des", name: "3DES Encrypt/Decrypt", icon: "lock.square", category: .crypto,
+        searchKeywords: ["3des", "des", "triple des", "legacy", "encrypt", "decrypt", "对称加密"]
     )
 }

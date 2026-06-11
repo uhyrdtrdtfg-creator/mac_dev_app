@@ -148,6 +148,8 @@ struct MacDevAppApp: App {
             HashGeneratorView.descriptor,
             HMACGeneratorView.descriptor,
             AESCryptorView.descriptor,
+            ChaCha20CryptorView.descriptor,
+            TripleDESCryptorView.descriptor,
             RSACryptorView.descriptor,
             JWTView.descriptor,
             CertificateInspectorView.descriptor,

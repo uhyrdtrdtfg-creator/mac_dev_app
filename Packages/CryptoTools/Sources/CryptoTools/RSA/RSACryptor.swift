@@ -22,11 +22,25 @@ public enum RSAPadding: String, CaseIterable, Identifiable, Sendable {
     var decryptAlgorithm: SecKeyAlgorithm { algorithm }
 }
 
+public enum RSASignatureAlgorithm: String, CaseIterable, Identifiable, Sendable {
+    case sha256 = "SHA256withRSA"
+    case sha512 = "SHA512withRSA"
+    public var id: String { rawValue }
+
+    var algorithm: SecKeyAlgorithm {
+        switch self {
+        case .sha256: .rsaSignatureMessagePKCS1v15SHA256
+        case .sha512: .rsaSignatureMessagePKCS1v15SHA512
+        }
+    }
+}
+
 public enum RSAError: Error, LocalizedError {
     case keyGenerationFailed(OSStatus)
     case invalidPEM
     case encryptionFailed(Error?)
     case decryptionFailed(Error?)
+    case signingFailed(Error?)
     case keyCreationFailed
 
     public var errorDescription: String? {
@@ -35,6 +49,7 @@ public enum RSAError: Error, LocalizedError {
         case .invalidPEM: "Invalid PEM key format"
         case .encryptionFailed(let e): "Encryption failed: \(e?.localizedDescription ?? "unknown")"
         case .decryptionFailed(let e): "Decryption failed: \(e?.localizedDescription ?? "unknown")"
+        case .signingFailed(let e): "Signing failed: \(e?.localizedDescription ?? "unknown")"
         case .keyCreationFailed: "Failed to create SecKey from PEM"
         }
     }
@@ -67,6 +82,24 @@ public enum RSACryptor {
         guard let decrypted = SecKeyCreateDecryptedData(key, padding.decryptAlgorithm, ciphertext as CFData, &error) else { throw RSAError.decryptionFailed(error?.takeRetainedValue()) }
         guard let result = String(data: decrypted as Data, encoding: .utf8) else { throw RSAError.decryptionFailed(nil) }
         return result
+    }
+
+    public static func sign(message: String, privateKeyPEM: String, algorithm: RSASignatureAlgorithm) throws -> Data {
+        let key = try secKey(fromPEM: privateKeyPEM, isPublic: false)
+        var error: Unmanaged<CFError>?
+        guard let signature = SecKeyCreateSignature(key, algorithm.algorithm, Data(message.utf8) as CFData, &error) else {
+            throw RSAError.signingFailed(error?.takeRetainedValue())
+        }
+        return signature as Data
+    }
+
+    public static func verify(message: String, signature: Data, publicKeyPEM: String, algorithm: RSASignatureAlgorithm) throws -> Bool {
+        let key = try secKey(fromPEM: publicKeyPEM, isPublic: true)
+        var error: Unmanaged<CFError>?
+        // A mismatched signature sets `error` and returns false — treat any failure as "not valid".
+        let valid = SecKeyVerifySignature(key, algorithm.algorithm, Data(message.utf8) as CFData, signature as CFData, &error)
+        _ = error?.takeRetainedValue()
+        return valid
     }
 
     private static func exportKeyToPEM(_ key: SecKey, isPublic: Bool) throws -> String {

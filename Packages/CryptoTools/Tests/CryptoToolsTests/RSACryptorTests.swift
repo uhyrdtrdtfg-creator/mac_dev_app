@@ -27,6 +27,29 @@ import Foundation
     #expect(decrypted == plaintext)
 }
 
+@Test func rsaSignVerifyRoundTrip() throws {
+    let keyPair = try RSACryptor.generateKeyPair(bits: 2048)
+    let message = "Sign me"
+    for algorithm in RSASignatureAlgorithm.allCases {
+        let signature = try RSACryptor.sign(message: message, privateKeyPEM: keyPair.privateKeyPEM, algorithm: algorithm)
+        #expect(signature.count == 256)
+        #expect(try RSACryptor.verify(message: message, signature: signature, publicKeyPEM: keyPair.publicKeyPEM, algorithm: algorithm))
+    }
+}
+
+@Test func rsaVerifyRejectsTamperedMessage() throws {
+    let keyPair = try RSACryptor.generateKeyPair(bits: 2048)
+    let signature = try RSACryptor.sign(message: "original", privateKeyPEM: keyPair.privateKeyPEM, algorithm: .sha256)
+    #expect(try !RSACryptor.verify(message: "tampered", signature: signature, publicKeyPEM: keyPair.publicKeyPEM, algorithm: .sha256))
+}
+
+@Test func rsaVerifyRejectsWrongKey() throws {
+    let keyPair = try RSACryptor.generateKeyPair(bits: 2048)
+    let otherPair = try RSACryptor.generateKeyPair(bits: 2048)
+    let signature = try RSACryptor.sign(message: "msg", privateKeyPEM: keyPair.privateKeyPEM, algorithm: .sha512)
+    #expect(try !RSACryptor.verify(message: "msg", signature: signature, publicKeyPEM: otherPair.publicKeyPEM, algorithm: .sha512))
+}
+
 @Test func rsaInvalidKeyThrows() {
     #expect(throws: RSAError.self) {
         try RSACryptor.encrypt(plaintext: "test", publicKeyPEM: "not-a-key", padding: .oaepSHA256)

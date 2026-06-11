@@ -1,5 +1,4 @@
 import SwiftUI
-import Combine
 import DevAppCore
 import CryptoTools
 import ConversionTools
@@ -71,6 +70,8 @@ struct ContentView: View {
         case "hash-generator": HashGeneratorView()
         case "hmac-generator": HMACGeneratorView()
         case "aes-cryptor": AESCryptorView()
+        case "chacha20": ChaCha20CryptorView()
+        case "triple-des": TripleDESCryptorView()
         case "rsa-cryptor": RSACryptorView()
         case "jwt": JWTView()
         case "cert-viewer": CertificateInspectorView()

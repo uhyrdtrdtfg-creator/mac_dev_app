@@ -6,6 +6,7 @@ public enum AESMode: String, CaseIterable, Identifiable, Sendable {
     case ecb = "ECB"
     case cbc = "CBC"
     case gcm = "GCM"
+    case ctr = "CTR"
     public var id: String { rawValue }
 }
 
@@ -35,10 +36,10 @@ public enum AESError: Error, LocalizedError {
     public var errorDescription: String? {
         switch self {
         case .invalidKeySize: "Invalid key size. Must be 16, 24, or 32 bytes."
-        case .invalidIVSize: "Invalid IV size. Must be 16 bytes for CBC, 12 bytes for GCM."
+        case .invalidIVSize: "Invalid IV size. Must be 16 bytes for CBC and CTR, 12 bytes for GCM."
         case .encryptionFailed(let s): "Encryption failed with status \(s)"
         case .decryptionFailed(let s): "Decryption failed with status \(s)"
-        case .missingIV: "IV is required for CBC and GCM modes."
+        case .missingIV: "IV is required for CBC, CTR, and GCM modes."
         case .missingTag: "Authentication tag is required for GCM decryption."
         case .gcmFailed(let e): "GCM operation failed: \(e.localizedDescription)"
         }
@@ -79,6 +80,10 @@ public enum AESCryptor {
             return try encryptCommonCrypto(data: data, key: key, iv: iv, ecb: false, padding: padding)
         case .ecb:
             return try encryptCommonCrypto(data: data, key: key, iv: Data(repeating: 0, count: 16), ecb: true, padding: padding)
+        case .ctr:
+            guard let iv else { throw AESError.missingIV }
+            guard iv.count == 16 else { throw AESError.invalidIVSize }
+            return AESResult(ciphertext: try cryptCTR(operation: CCOperation(kCCEncrypt), data: data, key: key, iv: iv), iv: iv, tag: nil)
         }
     }
 
@@ -96,6 +101,10 @@ public enum AESCryptor {
             decryptedData = try decryptCommonCrypto(data: ciphertext, key: key, iv: iv, ecb: false, padding: padding)
         case .ecb:
             decryptedData = try decryptCommonCrypto(data: ciphertext, key: key, iv: Data(repeating: 0, count: 16), ecb: true, padding: padding)
+        case .ctr:
+            guard let iv else { throw AESError.missingIV }
+            guard iv.count == 16 else { throw AESError.invalidIVSize }
+            decryptedData = try cryptCTR(operation: CCOperation(kCCDecrypt), data: ciphertext, key: key, iv: iv)
         }
         guard let result = String(data: decryptedData, encoding: .utf8) else {
             return decryptedData.base64EncodedString()
@@ -118,6 +127,37 @@ public enum AESCryptor {
             let sealedBox = try AES.GCM.SealedBox(nonce: nonce, ciphertext: ciphertext, tag: tag)
             return try AES.GCM.open(sealedBox, using: symmetricKey)
         } catch { throw AESError.gcmFailed(underlying: error) }
+    }
+
+    private static func cryptCTR(operation: CCOperation, data: Data, key: Data, iv: Data) throws -> Data {
+        func fail(_ status: Int32) -> AESError {
+            operation == CCOperation(kCCEncrypt) ? .encryptionFailed(status: status) : .decryptionFailed(status: status)
+        }
+        var cryptor: CCCryptorRef?
+        let createStatus = key.withUnsafeBytes { keyPtr in
+            iv.withUnsafeBytes { ivPtr in
+                CCCryptorCreateWithMode(operation, CCMode(kCCModeCTR), CCAlgorithm(kCCAlgorithmAES), CCPadding(ccNoPadding),
+                                        ivPtr.baseAddress, keyPtr.baseAddress, key.count, nil, 0, 0, 0, &cryptor)
+            }
+        }
+        guard createStatus == kCCSuccess, let cryptor else { throw fail(createStatus) }
+        defer { CCCryptorRelease(cryptor) }
+        let bufferSize = CCCryptorGetOutputLength(cryptor, data.count, true)
+        var buffer = Data(count: bufferSize)
+        var bytesWritten = 0
+        let updateStatus = buffer.withUnsafeMutableBytes { bufferPtr in
+            data.withUnsafeBytes { dataPtr in
+                CCCryptorUpdate(cryptor, dataPtr.baseAddress, data.count, bufferPtr.baseAddress, bufferSize, &bytesWritten)
+            }
+        }
+        guard updateStatus == kCCSuccess else { throw fail(updateStatus) }
+        var finalBytes = 0
+        let finalStatus = buffer.withUnsafeMutableBytes { bufferPtr in
+            CCCryptorFinal(cryptor, bufferPtr.baseAddress.map { $0 + bytesWritten }, bufferSize - bytesWritten, &finalBytes)
+        }
+        guard finalStatus == kCCSuccess else { throw fail(finalStatus) }
+        buffer.count = bytesWritten + finalBytes
+        return buffer
     }
 
     private static func encryptCommonCrypto(data: Data, key: Data, iv: Data, ecb: Bool, padding: AESPadding) throws -> AESResult {
