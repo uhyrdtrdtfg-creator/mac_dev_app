@@ -1,9 +1,29 @@
 import SwiftUI
 import SwiftData
+import UniformTypeIdentifiers
+
+struct HARExportDocument: FileDocument {
+    static var readableContentTypes: [UTType] { [.json] }
+    static var writableContentTypes: [UTType] {
+        if let har = UTType(filenameExtension: "har") { return [har, .json] }
+        return [.json]
+    }
+
+    var data: Data
+
+    init(data: Data) { self.data = data }
+    init(configuration: ReadConfiguration) throws { data = configuration.file.regularFileContents ?? Data() }
+    func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
+        FileWrapper(regularFileWithContents: data)
+    }
+}
 
 struct HistoryView: View {
     @Query(sort: \HTTPHistoryModel.executedAt, order: .reverse)
     private var historyItems: [HTTPHistoryModel]
+
+    @State private var harDocument: HARExportDocument?
+    @State private var showHARExporter = false
 
     let onSelect: (HTTPHistoryModel) -> Void
     let onClear: () -> Void
@@ -15,6 +35,14 @@ struct HistoryView: View {
                     .font(.headline)
                 Spacer()
                 if !historyItems.isEmpty {
+                    Button {
+                        harDocument = HARExportDocument(data: HARCodec.encode(requests: [], historyEntries: historyItems))
+                        showHARExporter = true
+                    } label: {
+                        Image(systemName: "square.and.arrow.up").font(.caption)
+                    }
+                    .buttonStyle(.borderless)
+                    .help("Export HAR")
                     Button("Clear All") { onClear() }
                         .font(.caption)
                         .buttonStyle(.borderless)
@@ -23,6 +51,12 @@ struct HistoryView: View {
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
+            .fileExporter(
+                isPresented: $showHARExporter,
+                document: harDocument,
+                contentType: Self.harContentType,
+                defaultFilename: "DevToolkit_History.har"
+            ) { _ in harDocument = nil }
 
             Divider()
 
@@ -65,6 +99,10 @@ struct HistoryView: View {
                 .listStyle(.plain)
             }
         }
+    }
+
+    private static var harContentType: UTType {
+        UTType(filenameExtension: "har") ?? .json
     }
 
     private func methodColor(_ method: String) -> Color {

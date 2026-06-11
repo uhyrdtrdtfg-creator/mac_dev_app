@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 import AppKit
+import UniformTypeIdentifiers
 
 struct SavedRequestsView: View {
     @Environment(\.modelContext) private var modelContext
@@ -14,6 +15,7 @@ struct SavedRequestsView: View {
     @State private var importFormat: ImportFormat = .postmanCollection
     @State private var showExportSheet = false
     @State private var exportFormat: ExportFormat = .postmanCollection
+    @State private var showHARImporter = false
 
     let onSelect: (SavedRequestModel) -> Void
 
@@ -185,6 +187,14 @@ struct SavedRequestsView: View {
                 .listStyle(.plain)
             }
         }
+        .fileImporter(isPresented: $showHARImporter, allowedContentTypes: Self.harContentTypes) { result in
+            if case .success(let url) = result { importHAR(from: url) }
+        }
+    }
+
+    private static var harContentTypes: [UTType] {
+        if let har = UTType(filenameExtension: "har") { return [har, .json] }
+        return [.json]
     }
 
     private func tagButton(_ tag: String?, label: String) -> some View {
@@ -229,6 +239,13 @@ struct SavedRequestsView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 6))
 
             HStack {
+                Button("Import HAR…") {
+                    showImportSheet = false
+                    importText = ""
+                    showHARImporter = true
+                }
+                .buttonStyle(.bordered)
+                .help("Import a HTTP Archive (.har) file")
                 Spacer()
                 Button("Cancel") { showImportSheet = false; importText = "" }
                     .buttonStyle(.bordered)
@@ -260,6 +277,38 @@ struct SavedRequestsView: View {
             }
         }
         importText = ""
+    }
+
+    private func importHAR(from url: URL) {
+        let accessing = url.startAccessingSecurityScopedResource()
+        defer { if accessing { url.stopAccessingSecurityScopedResource() } }
+        guard let data = try? Data(contentsOf: url),
+              let har = try? HARCodec.decode(data) else { return }
+        let mapped = HARCodec.mapToRequests(har)
+        guard !mapped.isEmpty else { return }
+
+        let collectionName = url.deletingPathExtension().lastPathComponent
+        let collection = HTTPCollectionModel(name: collectionName)
+        modelContext.insert(collection)
+
+        for req in mapped {
+            let request = HTTPRequestModel(name: req.name, method: req.method.rawValue, url: req.url)
+            request.headers = req.headers
+            request.body = req.body
+            request.collection = collection
+            modelContext.insert(request)
+
+            let saved = SavedRequestModel(name: req.name, method: req.method.rawValue, url: req.url)
+            saved.headers = req.headers
+            saved.body = req.body
+            if let body = req.body {
+                if case .json = body { saved.bodyType = "json" }
+                else if case .formData = body { saved.bodyType = "formData" }
+                else if case .raw = body { saved.bodyType = "raw" }
+            }
+            saved.tagList = [collectionName]
+            modelContext.insert(saved)
+        }
     }
 
     // MARK: - Export
