@@ -5,6 +5,7 @@ enum AuthMethod: String, CaseIterable, Identifiable {
     case bearer = "Bearer Token"
     case basic = "Basic Auth"
     case apiKey = "API Key"
+    case oauth2 = "OAuth 2.0"
 
     var id: String { rawValue }
 }
@@ -17,6 +18,7 @@ struct AuthEditor: View {
     @Binding var apiKeyName: String
     @Binding var apiKeyValue: String
     @Binding var apiKeyLocation: APIKeyLocation
+    @Binding var oauthConfig: OAuth2Config
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -119,6 +121,9 @@ struct AuthEditor: View {
                         .fixedSize()
                     }
                 }
+
+            case .oauth2:
+                OAuth2AuthPane(config: $oauthConfig)
             }
         }
     }

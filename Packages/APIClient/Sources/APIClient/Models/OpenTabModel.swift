@@ -27,6 +27,7 @@ public final class OpenTabModel {
     public var apiKeyName: String = ""
     public var apiKeyValue: String = ""
     public var apiKeyLocation: String = "header"
+    public var oauthConfigJSON: Data?
     public var preScript: String = ""
     public var postScript: String = ""
     public var rewriteScript: String = ""
@@ -72,5 +73,13 @@ public final class OpenTabModel {
             return (try? JSONDecoder().decode([KeyValuePair].self, from: d)) ?? [KeyValuePair()]
         }
         set { formDataJSON = try? JSONEncoder().encode(newValue) }
+    }
+
+    public var oauthConfig: OAuth2Config {
+        get {
+            guard let d = oauthConfigJSON else { return OAuth2Config() }
+            return (try? JSONDecoder().decode(OAuth2Config.self, from: d)) ?? OAuth2Config()
+        }
+        set { oauthConfigJSON = try? JSONEncoder().encode(newValue) }
     }
 }

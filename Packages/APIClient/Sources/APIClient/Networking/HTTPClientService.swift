@@ -91,6 +91,10 @@ public enum HTTPClientService {
                         if let newURL = comps.url { request.url = newURL }
                     }
                 }
+            case .oauth2(let config):
+                if let tokens = config.tokens, !tokens.accessToken.isEmpty {
+                    request.setValue("Bearer \(tokens.accessToken)", forHTTPHeaderField: "Authorization")
+                }
             }
         }
 

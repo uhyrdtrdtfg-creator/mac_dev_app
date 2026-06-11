@@ -28,6 +28,7 @@ struct RequestEditorView: View {
     @Binding var apiKeyName: String
     @Binding var apiKeyValue: String
     @Binding var apiKeyLocation: APIKeyLocation
+    @Binding var oauthConfig: OAuth2Config
     @Binding var preScript: String
     @Binding var postScript: String
     let consoleLogs: [ScriptConsoleOutput]
@@ -74,7 +75,7 @@ struct RequestEditorView: View {
                     case .body:
                         BodyEditor(bodyType: $bodyType, jsonBody: $jsonBody, formDataPairs: $formDataPairs, rawBody: $rawBody, graphqlQuery: $graphqlQuery, graphqlVariables: $graphqlVariables, url: url, headers: headers, auth: currentAuth)
                     case .auth:
-                        AuthEditor(authMethod: $authMethod, bearerToken: $bearerToken, basicUsername: $basicUsername, basicPassword: $basicPassword, apiKeyName: $apiKeyName, apiKeyValue: $apiKeyValue, apiKeyLocation: $apiKeyLocation)
+                        AuthEditor(authMethod: $authMethod, bearerToken: $bearerToken, basicUsername: $basicUsername, basicPassword: $basicPassword, apiKeyName: $apiKeyName, apiKeyValue: $apiKeyValue, apiKeyLocation: $apiKeyLocation, oauthConfig: $oauthConfig)
                     case .scripts:
                         ScriptEditorView(preScript: $preScript, postScript: $postScript, consoleLogs: consoleLogs)
                     }

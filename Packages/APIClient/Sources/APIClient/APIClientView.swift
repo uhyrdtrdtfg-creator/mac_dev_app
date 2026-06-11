@@ -94,6 +94,7 @@ public struct APIClientView: View {
                             apiKeyName: binding(tab, \.apiKeyName),
                             apiKeyValue: binding(tab, \.apiKeyValue),
                             apiKeyLocation: apiKeyLocationBinding(tab),
+                            oauthConfig: oauthConfigBinding(tab),
                             preScript: binding(tab, \.preScript),
                             postScript: binding(tab, \.postScript),
                             consoleLogs: consoleLogs,
@@ -490,6 +491,16 @@ public struct APIClientView: View {
         )
     }
 
+    private func oauthConfigBinding(_ tab: OpenTabModel) -> Binding<OAuth2Config> {
+        Binding(
+            get: { tab.oauthConfig },
+            set: { newValue in
+                tab.oauthConfig = newValue
+                markDirty(tab)
+            }
+        )
+    }
+
     private func markDirty(_ tab: OpenTabModel) {
         tab.isDirty = true
         tab.updatedAt = Date()
@@ -534,6 +545,7 @@ public struct APIClientView: View {
             case .bearer: .bearerToken(tab.bearerToken)
             case .basic: .basicAuth(username: tab.basicUsername, password: tab.basicPassword)
             case .apiKey: .apiKey(key: tab.apiKeyName, value: tab.apiKeyValue, addTo: apiKeyLocEnum)
+            case .oauth2: .oauth2(tab.oauthConfig)
             }
         }()
 
