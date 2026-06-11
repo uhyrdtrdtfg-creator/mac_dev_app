@@ -16,7 +16,7 @@ struct ContentView: View {
             SidebarView(registry: registry)
         } detail: {
             if let toolID = registry.selectedToolID {
-                if toolID == "http-client" || toolID == "markdown-preview" || toolID == "text-diff" || toolID == "websocket-sse" || toolID == "mock-server" || toolID == "regex-tester" || toolID == "unicode-inspector" || toolID == "compression" || toolID == "sql-result" || toolID == "image-toolbox" {
+                if toolID == "http-client" || toolID == "markdown-preview" || toolID == "text-diff" || toolID == "websocket-sse" || toolID == "mock-server" || toolID == "regex-tester" || toolID == "unicode-inspector" || toolID == "compression" || toolID == "sql-result" || toolID == "image-toolbox" || toolID == "process-manager" {
                     toolView(for: toolID)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
@@ -110,6 +110,7 @@ struct ContentView: View {
         case "compression": CompressionView()
         case "dotenv-json": DotenvConverterView()
         case "sql-result": SQLResultConverterView()
+        case "process-manager": ProcessManagerView()
         case "qr-code": QRCodeView()
         case "json-to-code": JSONToCodeView()
         case "image-toolbox": ImageToolboxView()

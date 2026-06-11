@@ -190,6 +190,7 @@ struct MacDevAppApp: App {
             CompressionView.descriptor,
             DotenvConverterView.descriptor,
             SQLResultConverterView.descriptor,
+            ProcessManagerView.descriptor,
             // Generators
             QRCodeView.descriptor,
             JSONToCodeView.descriptor,
