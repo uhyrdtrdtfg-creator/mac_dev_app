@@ -43,6 +43,7 @@ struct RequestEditorView: View {
         case .bearer: .bearerToken(bearerToken)
         case .basic: .basicAuth(username: basicUsername, password: basicPassword)
         case .apiKey: .apiKey(key: apiKeyName, value: apiKeyValue, addTo: apiKeyLocation)
+        case .oauth2: .oauth2(oauthConfig)
         }
     }
 

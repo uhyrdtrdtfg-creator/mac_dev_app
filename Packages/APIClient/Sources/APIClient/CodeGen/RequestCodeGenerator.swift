@@ -126,6 +126,8 @@ public enum RequestCodeGenerator {
             }
         case .apiKey(let key, let value, .header):
             headers.append((key, value))
+        case .oauth2(let config):
+            headers.append(("Authorization", "Bearer \(config.tokens?.accessToken ?? "ACCESS_TOKEN")"))
         case .apiKey(_, _, .queryParam), nil:
             break
         }

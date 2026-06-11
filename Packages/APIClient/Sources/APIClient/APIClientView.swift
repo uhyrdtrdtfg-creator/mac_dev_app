@@ -701,6 +701,7 @@ public struct APIClientView: View {
         case .bearer: .bearerToken(tab.bearerToken)
         case .basic: .basicAuth(username: tab.basicUsername, password: tab.basicPassword)
         case .apiKey: .apiKey(key: tab.apiKeyName, value: tab.apiKeyValue, addTo: APIKeyLocation(rawValue: tab.apiKeyLocation) ?? .header)
+        case .oauth2: .oauth2(tab.oauthConfig)
         }
 
         return CodeGenRequest(

@@ -138,6 +138,15 @@ private let tricky = CodeGenRequest(
     #expect(go.contains("req.SetBasicAuth(\"user\", \"pass\")"))
 }
 
+@Test func oauth2BearerInjection() {
+    let withToken = CodeGenRequest(method: .get, url: "https://x.dev/", auth: .oauth2(OAuth2Config(tokens: OAuth2Tokens(accessToken: "live-token-1"))))
+    let without = CodeGenRequest(method: .get, url: "https://x.dev/", auth: .oauth2(OAuth2Config()))
+    for lang in CodeGenLanguage.allCases {
+        #expect(RequestCodeGenerator.generate(lang, request: withToken).contains("Bearer live-token-1"), "\(lang.rawValue)")
+        #expect(RequestCodeGenerator.generate(lang, request: without).contains("Bearer ACCESS_TOKEN"), "\(lang.rawValue)")
+    }
+}
+
 @Test func apiKeyHeaderAndQuery() {
     let header = CodeGenRequest(method: .get, url: "https://x.dev/", auth: .apiKey(key: "X-Api-Key", value: "k1", addTo: .header))
     #expect(RequestCodeGenerator.generate(.pythonRequests, request: header).contains("'X-Api-Key': 'k1'"))
