@@ -1,6 +1,26 @@
 import Foundation
 import CCommonCrypto
 
+public enum DESAlgorithm: String, CaseIterable, Identifiable, Sendable {
+    case des = "DES"
+    case tripleDES = "3DES"
+    public var id: String { rawValue }
+
+    public var keySize: Int {
+        switch self {
+        case .des: kCCKeySizeDES
+        case .tripleDES: kCCKeySize3DES
+        }
+    }
+
+    var ccAlgorithm: CCAlgorithm {
+        switch self {
+        case .des: CCAlgorithm(kCCAlgorithmDES)
+        case .tripleDES: CCAlgorithm(kCCAlgorithm3DES)
+        }
+    }
+}
+
 public enum TripleDESMode: String, CaseIterable, Identifiable, Sendable {
     case ecb = "ECB"
     case cbc = "CBC"
@@ -22,7 +42,7 @@ public enum TripleDESError: Error, LocalizedError {
 
     public var errorDescription: String? {
         switch self {
-        case .invalidKeySize: "Invalid key size. Must be 24 bytes."
+        case .invalidKeySize: "Invalid key size. DES requires 8 bytes, 3DES requires 24 bytes."
         case .invalidIVSize: "Invalid IV size. Must be 8 bytes."
         case .encryptionFailed(let s): "Encryption failed with status \(s)"
         case .decryptionFailed(let s): "Decryption failed with status \(s)"
@@ -37,9 +57,9 @@ public struct TripleDESResult: Sendable {
 }
 
 public enum TripleDESCryptor {
-    public static func generateRandomKey() -> Data {
-        var bytes = [UInt8](repeating: 0, count: kCCKeySize3DES)
-        _ = SecRandomCopyBytes(kSecRandomDefault, kCCKeySize3DES, &bytes)
+    public static func generateRandomKey(algorithm: DESAlgorithm = .tripleDES) -> Data {
+        var bytes = [UInt8](repeating: 0, count: algorithm.keySize)
+        _ = SecRandomCopyBytes(kSecRandomDefault, algorithm.keySize, &bytes)
         return Data(bytes)
     }
 
@@ -49,32 +69,32 @@ public enum TripleDESCryptor {
         return Data(bytes)
     }
 
-    public static func encrypt(plaintext: String, key: Data, mode: TripleDESMode, iv: Data? = nil, padding: TripleDESPadding = .pkcs7) throws -> TripleDESResult {
-        try encrypt(data: Data(plaintext.utf8), key: key, mode: mode, iv: iv, padding: padding)
+    public static func encrypt(plaintext: String, key: Data, mode: TripleDESMode, iv: Data? = nil, padding: TripleDESPadding = .pkcs7, algorithm: DESAlgorithm = .tripleDES) throws -> TripleDESResult {
+        try encrypt(data: Data(plaintext.utf8), key: key, mode: mode, iv: iv, padding: padding, algorithm: algorithm)
     }
 
-    public static func encrypt(data: Data, key: Data, mode: TripleDESMode, iv: Data? = nil, padding: TripleDESPadding = .pkcs7) throws -> TripleDESResult {
-        guard key.count == kCCKeySize3DES else { throw TripleDESError.invalidKeySize }
+    public static func encrypt(data: Data, key: Data, mode: TripleDESMode, iv: Data? = nil, padding: TripleDESPadding = .pkcs7, algorithm: DESAlgorithm = .tripleDES) throws -> TripleDESResult {
+        guard key.count == algorithm.keySize else { throw TripleDESError.invalidKeySize }
         switch mode {
         case .cbc:
             guard let iv else { throw TripleDESError.missingIV }
             guard iv.count == kCCBlockSize3DES else { throw TripleDESError.invalidIVSize }
-            return try crypt(operation: CCOperation(kCCEncrypt), data: data, key: key, iv: iv, ecb: false, padding: padding)
+            return try crypt(operation: CCOperation(kCCEncrypt), data: data, key: key, iv: iv, ecb: false, padding: padding, algorithm: algorithm)
         case .ecb:
-            return try crypt(operation: CCOperation(kCCEncrypt), data: data, key: key, iv: Data(repeating: 0, count: kCCBlockSize3DES), ecb: true, padding: padding)
+            return try crypt(operation: CCOperation(kCCEncrypt), data: data, key: key, iv: Data(repeating: 0, count: kCCBlockSize3DES), ecb: true, padding: padding, algorithm: algorithm)
         }
     }
 
-    public static func decrypt(ciphertext: Data, key: Data, mode: TripleDESMode, iv: Data? = nil, padding: TripleDESPadding = .pkcs7) throws -> String {
-        guard key.count == kCCKeySize3DES else { throw TripleDESError.invalidKeySize }
+    public static func decrypt(ciphertext: Data, key: Data, mode: TripleDESMode, iv: Data? = nil, padding: TripleDESPadding = .pkcs7, algorithm: DESAlgorithm = .tripleDES) throws -> String {
+        guard key.count == algorithm.keySize else { throw TripleDESError.invalidKeySize }
         let decryptedData: Data
         switch mode {
         case .cbc:
             guard let iv else { throw TripleDESError.missingIV }
             guard iv.count == kCCBlockSize3DES else { throw TripleDESError.invalidIVSize }
-            decryptedData = try crypt(operation: CCOperation(kCCDecrypt), data: ciphertext, key: key, iv: iv, ecb: false, padding: padding).ciphertext
+            decryptedData = try crypt(operation: CCOperation(kCCDecrypt), data: ciphertext, key: key, iv: iv, ecb: false, padding: padding, algorithm: algorithm).ciphertext
         case .ecb:
-            decryptedData = try crypt(operation: CCOperation(kCCDecrypt), data: ciphertext, key: key, iv: Data(repeating: 0, count: kCCBlockSize3DES), ecb: true, padding: padding).ciphertext
+            decryptedData = try crypt(operation: CCOperation(kCCDecrypt), data: ciphertext, key: key, iv: Data(repeating: 0, count: kCCBlockSize3DES), ecb: true, padding: padding, algorithm: algorithm).ciphertext
         }
         guard let result = String(data: decryptedData, encoding: .utf8) else {
             return decryptedData.base64EncodedString()
@@ -82,7 +102,7 @@ public enum TripleDESCryptor {
         return result
     }
 
-    private static func crypt(operation: CCOperation, data: Data, key: Data, iv: Data, ecb: Bool, padding: TripleDESPadding) throws -> TripleDESResult {
+    private static func crypt(operation: CCOperation, data: Data, key: Data, iv: Data, ecb: Bool, padding: TripleDESPadding, algorithm: DESAlgorithm) throws -> TripleDESResult {
         let options: UInt32 = {
             var opts: UInt32 = 0
             if ecb { opts |= UInt32(kCCOptionECBMode) }
@@ -96,7 +116,7 @@ public enum TripleDESCryptor {
             data.withUnsafeBytes { dataPtr in
                 key.withUnsafeBytes { keyPtr in
                     iv.withUnsafeBytes { ivPtr in
-                        CCCrypt(operation, CCAlgorithm(kCCAlgorithm3DES), CCOptions(options),
+                        CCCrypt(operation, algorithm.ccAlgorithm, CCOptions(options),
                                 keyPtr.baseAddress, key.count, ivPtr.baseAddress,
                                 dataPtr.baseAddress, data.count, bufferPtr.baseAddress, bufferSize, &bytesProcessed)
                     }

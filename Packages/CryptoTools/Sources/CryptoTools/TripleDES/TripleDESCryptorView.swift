@@ -6,6 +6,7 @@ public struct TripleDESCryptorView: View {
     @State private var output = ""
     @State private var keyHex = ""
     @State private var ivHex = ""
+    @State private var algorithm: DESAlgorithm = .tripleDES
     @State private var mode: TripleDESMode = .cbc
     @State private var padding: TripleDESPadding = .pkcs7
     @State private var outputFormat: OutputFormat = .base64
@@ -22,12 +23,18 @@ public struct TripleDESCryptorView: View {
     public var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
-                Text("3DES Encrypt / Decrypt").font(.title2).fontWeight(.semibold)
-                Text("Triple DES symmetric encryption with ECB and CBC modes").font(.subheadline).foregroundStyle(.secondary)
-                Text("3DES is legacy — prefer AES for new systems").font(.caption).foregroundStyle(.orange)
+                Text("DES / 3DES Encrypt / Decrypt").font(.title2).fontWeight(.semibold)
+                Text("DES and Triple DES symmetric encryption with ECB and CBC modes").font(.subheadline).foregroundStyle(.secondary)
+                Text("DES/3DES are legacy — prefer AES for new systems").font(.caption).foregroundStyle(.orange)
             }
 
             HStack(spacing: 16) {
+                Picker("Algorithm", selection: $algorithm) {
+                    ForEach(DESAlgorithm.allCases) { a in Text(a.rawValue).tag(a) }
+                }
+                .pickerStyle(.segmented)
+                .fixedSize()
+
                 Picker("Mode", selection: $mode) {
                     ForEach(TripleDESMode.allCases) { m in Text(m.rawValue).tag(m) }
                 }
@@ -49,7 +56,7 @@ public struct TripleDESCryptorView: View {
 
             HStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Key (Hex, 24 bytes)").font(.caption).foregroundStyle(.secondary).textCase(.uppercase)
+                    Text("Key (Hex, \(algorithm.keySize) bytes)").font(.caption).foregroundStyle(.secondary).textCase(.uppercase)
                     TextField("Enter key in hex...", text: $keyHex).font(.system(.body, design: .monospaced)).textFieldStyle(.plain).padding(8).background(.fill.tertiary).clipShape(RoundedRectangle(cornerRadius: 8))
                 }
                 if mode != .ecb {
@@ -84,7 +91,7 @@ public struct TripleDESCryptorView: View {
     }
 
     private func generateRandomKeyIV() {
-        keyHex = TripleDESCryptor.generateRandomKey().hexString()
+        keyHex = TripleDESCryptor.generateRandomKey(algorithm: algorithm).hexString()
         if mode != .ecb {
             ivHex = TripleDESCryptor.generateRandomIV().hexString()
         }
@@ -92,11 +99,11 @@ public struct TripleDESCryptorView: View {
 
     private func encrypt() {
         errorMessage = nil
-        guard let key = Data(hexString: keyHex), key.count == 24 else { errorMessage = "Invalid key. Expected 48 hex characters (24 bytes)."; return }
+        guard let key = Data(hexString: keyHex), key.count == algorithm.keySize else { errorMessage = "Invalid key. Expected \(algorithm.keySize * 2) hex characters (\(algorithm.keySize) bytes)."; return }
         let iv: Data? = mode != .ecb ? Data(hexString: ivHex) : nil
         if mode == .cbc, iv?.count != 8 { errorMessage = "Invalid IV. Expected 16 hex characters (8 bytes)."; return }
         do {
-            let result = try TripleDESCryptor.encrypt(plaintext: input, key: key, mode: mode, iv: iv, padding: padding)
+            let result = try TripleDESCryptor.encrypt(plaintext: input, key: key, mode: mode, iv: iv, padding: padding, algorithm: algorithm)
             switch outputFormat {
             case .hex: output = result.ciphertext.hexString()
             case .base64: output = result.ciphertext.base64EncodedString()
@@ -106,21 +113,21 @@ public struct TripleDESCryptorView: View {
 
     private func decrypt() {
         errorMessage = nil
-        guard let key = Data(hexString: keyHex), key.count == 24 else { errorMessage = "Invalid key. Expected 48 hex characters (24 bytes)."; return }
+        guard let key = Data(hexString: keyHex), key.count == algorithm.keySize else { errorMessage = "Invalid key. Expected \(algorithm.keySize * 2) hex characters (\(algorithm.keySize) bytes)."; return }
         let ciphertext: Data
         switch outputFormat {
         case .hex: guard let d = Data(hexString: output) else { errorMessage = "Invalid hex."; return }; ciphertext = d
         case .base64: guard let d = Data(base64Encoded: output) else { errorMessage = "Invalid Base64."; return }; ciphertext = d
         }
         let iv = Data(hexString: ivHex)
-        do { input = try TripleDESCryptor.decrypt(ciphertext: ciphertext, key: key, mode: mode, iv: iv, padding: padding) }
+        do { input = try TripleDESCryptor.decrypt(ciphertext: ciphertext, key: key, mode: mode, iv: iv, padding: padding, algorithm: algorithm) }
         catch { errorMessage = error.localizedDescription }
     }
 }
 
 extension TripleDESCryptorView {
     public static let descriptor = ToolDescriptor(
-        id: "triple-des", name: "3DES Encrypt/Decrypt", icon: "lock.square", category: .crypto,
-        searchKeywords: ["3des", "des", "triple des", "legacy", "encrypt", "decrypt", "对称加密"]
+        id: "triple-des", name: "DES/3DES Encrypt/Decrypt", icon: "lock.square", category: .crypto,
+        searchKeywords: ["3des", "des", "single des", "triple des", "legacy", "encrypt", "decrypt", "对称加密"]
     )
 }

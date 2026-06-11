@@ -153,6 +153,7 @@ struct MacDevAppApp: App {
             RSACryptorView.descriptor,
             JWTView.descriptor,
             CertificateInspectorView.descriptor,
+            PEMDERConverterView.descriptor,
             KeyDerivationView.descriptor,
             TOTPView.descriptor,
             // API Client

@@ -5,6 +5,7 @@ import CCommonCrypto
 public enum KDFFunction: String, CaseIterable, Identifiable, Sendable {
     case pbkdf2 = "PBKDF2"
     case hkdf = "HKDF"
+    case bcrypt = "bcrypt"
     public var id: String { rawValue }
 }
 

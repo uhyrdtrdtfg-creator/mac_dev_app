@@ -67,3 +67,42 @@ import DevAppCore
         try TripleDESCryptor.encrypt(plaintext: "test", key: key, mode: .cbc)
     }
 }
+
+@Test func desECBEncryptDecryptRoundTrip() throws {
+    let plaintext = "Hello, World! This is a test."
+    let key = TripleDESCryptor.generateRandomKey(algorithm: .des)
+    let encrypted = try TripleDESCryptor.encrypt(plaintext: plaintext, key: key, mode: .ecb, padding: .pkcs7, algorithm: .des)
+    let decrypted = try TripleDESCryptor.decrypt(ciphertext: encrypted.ciphertext, key: key, mode: .ecb, padding: .pkcs7, algorithm: .des)
+    #expect(decrypted == plaintext)
+}
+
+@Test func desCBCEncryptDecryptRoundTrip() throws {
+    let plaintext = "Hello, World! This is a test."
+    let key = TripleDESCryptor.generateRandomKey(algorithm: .des)
+    let iv = TripleDESCryptor.generateRandomIV()
+    let encrypted = try TripleDESCryptor.encrypt(plaintext: plaintext, key: key, mode: .cbc, iv: iv, padding: .pkcs7, algorithm: .des)
+    let decrypted = try TripleDESCryptor.decrypt(ciphertext: encrypted.ciphertext, key: key, mode: .cbc, iv: iv, padding: .pkcs7, algorithm: .des)
+    #expect(decrypted == plaintext)
+}
+
+@Test func desECBNoPaddingKnownAnswerVector() throws {
+    let key = try #require(Data(hexString: "133457799bbcdff1"))
+    let plaintext = try #require(Data(hexString: "0123456789abcdef"))
+    let expected = try #require(Data(hexString: "85e813540f0ab405"))
+    let encrypted = try TripleDESCryptor.encrypt(data: plaintext, key: key, mode: .ecb, padding: .noPadding, algorithm: .des)
+    #expect(encrypted.ciphertext == expected)
+    let decrypted = try TripleDESCryptor.decrypt(ciphertext: expected, key: key, mode: .ecb, padding: .noPadding, algorithm: .des)
+    #expect(decrypted == plaintext.base64EncodedString())
+}
+
+@Test func desKeyGeneration() {
+    let key = TripleDESCryptor.generateRandomKey(algorithm: .des)
+    #expect(key.count == 8)
+}
+
+@Test func desInvalidKeySize() {
+    let key = Data(repeating: 0, count: 16)
+    #expect(throws: TripleDESError.self) {
+        try TripleDESCryptor.encrypt(plaintext: "test", key: key, mode: .ecb, algorithm: .des)
+    }
+}

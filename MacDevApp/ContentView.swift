@@ -75,6 +75,7 @@ struct ContentView: View {
         case "rsa-cryptor": RSACryptorView()
         case "jwt": JWTView()
         case "cert-viewer": CertificateInspectorView()
+        case "pem-der": PEMDERConverterView()
         case "key-derivation": KeyDerivationView()
         case "totp": TOTPView()
         case "http-client": APIClientView()
