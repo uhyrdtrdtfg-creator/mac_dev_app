@@ -83,6 +83,12 @@ public enum ImportExportService {
                     }
                 }
             }
+            if case .graphql(let query, let variables) = req.body {
+                request["body"] = [
+                    "mode": "graphql",
+                    "graphql": ["query": query, "variables": variables]
+                ] as [String: Any]
+            }
 
             item["request"] = request
 
@@ -202,6 +208,17 @@ public enum ImportExportService {
                         KeyValuePair(key: $0["key"] as? String ?? "", value: $0["value"] as? String ?? "")
                     })
                     saved.bodyType = "formData"
+                } else if mode == "graphql", let gql = bodyObj["graphql"] as? [String: Any] {
+                    let query = gql["query"] as? String ?? ""
+                    var variables = ""
+                    if let s = gql["variables"] as? String {
+                        variables = s
+                    } else if let obj = gql["variables"], JSONSerialization.isValidJSONObject(obj),
+                              let d = try? JSONSerialization.data(withJSONObject: obj, options: [.sortedKeys]) {
+                        variables = String(decoding: d, as: UTF8.self)
+                    }
+                    saved.body = .graphql(query: query, variables: variables)
+                    saved.bodyType = "GraphQL"
                 }
             }
 

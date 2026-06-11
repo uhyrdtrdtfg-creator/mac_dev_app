@@ -85,6 +85,8 @@ public struct APIClientView: View {
                             jsonBody: binding(tab, \.jsonBody),
                             formDataPairs: kvBinding(tab, \.formDataJSON),
                             rawBody: binding(tab, \.rawBody),
+                            graphqlQuery: binding(tab, \.graphqlQuery),
+                            graphqlVariables: binding(tab, \.graphqlVariables),
                             authMethod: authMethodBinding(tab),
                             bearerToken: binding(tab, \.bearerToken),
                             basicUsername: binding(tab, \.basicUsername),
@@ -522,6 +524,7 @@ public struct APIClientView: View {
             case .json: .json(tab.jsonBody)
             case .formData: .formData(tab.formDataPairs)
             case .raw: .raw(tab.rawBody)
+            case .graphql: .graphql(query: tab.graphqlQuery, variables: tab.graphqlVariables)
             }
         }()
 
@@ -590,6 +593,8 @@ public struct APIClientView: View {
         case .json: history.requestBodyJSON = tab.jsonBody.data(using: .utf8)
         case .formData: history.formDataJSON = try? JSONEncoder().encode(tab.formDataPairs)
         case .raw: history.rawBody = tab.rawBody
+        // HTTPHistoryModel's CloudKit schema is frozen — store the GraphQL envelope through the JSON pathway.
+        case .graphql: history.requestBodyJSON = try? GraphQLEnvelope.build(query: tab.graphqlQuery, variables: tab.graphqlVariables)
         }
 
         history.preScript = tab.preScript.isEmpty ? nil : tab.preScript
@@ -635,6 +640,11 @@ public struct APIClientView: View {
                 }
             case .raw:
                 tab.rawBody = item.rawBody ?? ""
+            case .graphql:
+                if let data = item.requestBodyJSON, let (query, variables) = GraphQLEnvelope.decompose(data) {
+                    tab.graphqlQuery = query
+                    tab.graphqlVariables = variables
+                }
             }
         } else {
             tab.bodyType = BodyType.none.rawValue
@@ -671,6 +681,7 @@ public struct APIClientView: View {
         case .json: .json(tab.jsonBody)
         case .formData: .formData(tab.formDataPairs)
         case .raw: .raw(tab.rawBody)
+        case .graphql: .graphql(query: tab.graphqlQuery, variables: tab.graphqlVariables)
         }
 
         let auth: AuthType? = switch AuthMethod(rawValue: tab.authMethod) ?? .none {
@@ -736,6 +747,7 @@ public struct APIClientView: View {
         case .json: saved.body = .json(tab.jsonBody)
         case .formData: saved.body = .formData(tab.formDataPairs)
         case .raw: saved.body = .raw(tab.rawBody)
+        case .graphql: saved.body = .graphql(query: tab.graphqlQuery, variables: tab.graphqlVariables)
         }
 
         saved.preScript = tab.preScript.isEmpty ? nil : tab.preScript
@@ -783,6 +795,10 @@ public struct APIClientView: View {
                 tab.rawBody = raw
                 tab.bodyType = BodyType.raw.rawValue
             case .binary: break
+            case .graphql(let query, let variables):
+                tab.graphqlQuery = query
+                tab.graphqlVariables = variables
+                tab.bodyType = BodyType.graphql.rawValue
             }
         }
 

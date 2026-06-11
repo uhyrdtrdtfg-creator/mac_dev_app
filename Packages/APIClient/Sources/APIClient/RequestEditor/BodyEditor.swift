@@ -5,6 +5,7 @@ enum BodyType: String, CaseIterable, Identifiable {
     case json = "JSON"
     case formData = "Form Data"
     case raw = "Raw"
+    case graphql = "GraphQL"
 
     var id: String { rawValue }
 }
@@ -14,6 +15,11 @@ struct BodyEditor: View {
     @Binding var jsonBody: String
     @Binding var formDataPairs: [KeyValuePair]
     @Binding var rawBody: String
+    @Binding var graphqlQuery: String
+    @Binding var graphqlVariables: String
+    var url: String = ""
+    var headers: [KeyValuePair] = []
+    var auth: AuthType? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -40,6 +46,8 @@ struct BodyEditor: View {
                     .clipShape(RoundedRectangle(cornerRadius: 8))
                     .overlay(RoundedRectangle(cornerRadius: 8).stroke(.separator, lineWidth: 0.5))
                     .frame(minHeight: 100)
+            case .graphql:
+                GraphQLBodyEditor(query: $graphqlQuery, variables: $graphqlVariables, url: url, headers: headers, auth: auth)
             }
         }
     }

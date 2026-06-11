@@ -19,6 +19,8 @@ struct RequestEditorView: View {
     @Binding var jsonBody: String
     @Binding var formDataPairs: [KeyValuePair]
     @Binding var rawBody: String
+    @Binding var graphqlQuery: String
+    @Binding var graphqlVariables: String
     @Binding var authMethod: AuthMethod
     @Binding var bearerToken: String
     @Binding var basicUsername: String
@@ -33,6 +35,15 @@ struct RequestEditorView: View {
     let onSend: () -> Void
 
     @State private var selectedTab: RequestTab = .params
+
+    private var currentAuth: AuthType? {
+        switch authMethod {
+        case .none: nil
+        case .bearer: .bearerToken(bearerToken)
+        case .basic: .basicAuth(username: basicUsername, password: basicPassword)
+        case .apiKey: .apiKey(key: apiKeyName, value: apiKeyValue, addTo: apiKeyLocation)
+        }
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -61,7 +72,7 @@ struct RequestEditorView: View {
                     case .headers:
                         HeadersEditor(headers: $headers)
                     case .body:
-                        BodyEditor(bodyType: $bodyType, jsonBody: $jsonBody, formDataPairs: $formDataPairs, rawBody: $rawBody)
+                        BodyEditor(bodyType: $bodyType, jsonBody: $jsonBody, formDataPairs: $formDataPairs, rawBody: $rawBody, graphqlQuery: $graphqlQuery, graphqlVariables: $graphqlVariables, url: url, headers: headers, auth: currentAuth)
                     case .auth:
                         AuthEditor(authMethod: $authMethod, bearerToken: $bearerToken, basicUsername: $basicUsername, basicPassword: $basicPassword, apiKeyName: $apiKeyName, apiKeyValue: $apiKeyValue, apiKeyLocation: $apiKeyLocation)
                     case .scripts:

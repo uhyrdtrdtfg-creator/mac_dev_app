@@ -22,6 +22,7 @@ public enum RequestBody: Codable, Sendable {
     case formData([KeyValuePair])
     case raw(String)
     case binary(Data)
+    case graphql(query: String, variables: String)
 }
 
 public enum AuthType: Codable, Sendable {

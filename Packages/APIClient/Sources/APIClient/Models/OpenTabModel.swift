@@ -18,6 +18,8 @@ public final class OpenTabModel {
     public var jsonBody: String = ""
     public var formDataJSON: Data?
     public var rawBody: String = ""
+    public var graphqlQuery: String = ""
+    public var graphqlVariables: String = ""
     public var authMethod: String = "None"
     public var bearerToken: String = ""
     public var basicUsername: String = ""

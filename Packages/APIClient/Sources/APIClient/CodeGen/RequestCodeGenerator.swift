@@ -62,6 +62,7 @@ public enum RequestCodeGenerator {
         var formPairs: [(String, String)]?
         var rawBody: String?
         var binaryByteCount: Int?
+        var placeholderComment: String?
         var basicAuth: (user: String, password: String)?
 
         var hasBody: Bool { jsonBody != nil || formPairs != nil || rawBody != nil }
@@ -102,6 +103,13 @@ public enum RequestCodeGenerator {
             plan.rawBody = text
         case .binary(let data):
             plan.binaryByteCount = data.count
+        case .graphql(let query, let variables):
+            if let envelope = try? GraphQLEnvelope.buildString(query: query, variables: variables) {
+                plan.jsonBody = envelope
+                if !hasContentType { headers.append(("Content-Type", "application/json")) }
+            } else {
+                plan.placeholderComment = "GraphQL body omitted — variables are not valid JSON"
+            }
         case nil:
             break
         }
@@ -157,6 +165,8 @@ public enum RequestCodeGenerator {
         } else if let count = plan.binaryByteCount {
             lines.append("// Binary body (\(count) bytes) — load it from a file:")
             lines.append("request.httpBody = try Data(contentsOf: URL(fileURLWithPath: \"/path/to/body\"))")
+        } else if let comment = plan.placeholderComment {
+            lines.append("// \(comment)")
         }
         lines.append("")
         lines.append("let (data, response) = try await URLSession.shared.data(for: request)")
@@ -200,6 +210,8 @@ public enum RequestCodeGenerator {
             lines.append("# Binary body (\(count) bytes) — load it from a file:")
             lines.append("data = open(\"/path/to/body\", \"rb\").read()")
             callArgs.append("data=data")
+        } else if let comment = plan.placeholderComment {
+            lines.append("# \(comment)")
         }
         if let basic = plan.basicAuth {
             callArgs.append("auth=(\(pythonString(basic.user)), \(pythonString(basic.password)))")
@@ -231,6 +243,8 @@ public enum RequestCodeGenerator {
             lines.append("    body: \(jsString(formEncoded(pairs))),")
         } else if let count = plan.binaryByteCount {
             lines.append("    // Binary body (\(count) bytes) — pass a Blob/Buffer here.")
+        } else if let comment = plan.placeholderComment {
+            lines.append("    // \(comment)")
         }
         lines.append("  });")
         lines.append("  console.log(response.status);")
@@ -260,6 +274,8 @@ public enum RequestCodeGenerator {
             options.append("    data: \(jsString(formEncoded(pairs))),")
         } else if let count = plan.binaryByteCount {
             options.append("    // Binary body (\(count) bytes) — pass a Buffer here.")
+        } else if let comment = plan.placeholderComment {
+            options.append("    // \(comment)")
         }
         if let basic = plan.basicAuth {
             options.append("    auth: { username: \(jsString(basic.user)), password: \(jsString(basic.password)) },")
@@ -303,6 +319,7 @@ public enum RequestCodeGenerator {
         lines.append("")
         lines.append("func main() {")
         if let bodyDecl { lines.append("\t\(bodyDecl)") }
+        else if let comment = plan.placeholderComment { lines.append("\t// \(comment)") }
         lines.append("\treq, err := http.NewRequest(\(goString(plan.method)), \(goString(plan.url)), \(bodyArg))")
         lines.append("\tif err != nil {")
         lines.append("\t\tpanic(err)")

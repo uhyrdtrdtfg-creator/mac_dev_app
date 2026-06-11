@@ -4,12 +4,14 @@ public enum HTTPClientError: Error, LocalizedError {
     case invalidURL
     case requestFailed(Error)
     case noResponse
+    case invalidGraphQLVariables(String)
 
     public var errorDescription: String? {
         switch self {
         case .invalidURL: "Invalid URL"
         case .requestFailed(let e): "Request failed: \(e.localizedDescription)"
         case .noResponse: "No response received"
+        case .invalidGraphQLVariables(let detail): "Invalid GraphQL variables: \(detail)"
         }
     }
 }
@@ -66,6 +68,10 @@ public enum HTTPClientService {
                 if request.value(forHTTPHeaderField: "Content-Type") == nil { request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type") }
             case .raw(let text): request.httpBody = Data(text.utf8)
             case .binary(let data): request.httpBody = data
+            case .graphql(let query, let variables):
+                do { request.httpBody = try GraphQLEnvelope.build(query: query, variables: variables) }
+                catch { throw HTTPClientError.invalidGraphQLVariables(error.localizedDescription) }
+                if request.value(forHTTPHeaderField: "Content-Type") == nil { request.setValue("application/json", forHTTPHeaderField: "Content-Type") }
             }
         }
 
