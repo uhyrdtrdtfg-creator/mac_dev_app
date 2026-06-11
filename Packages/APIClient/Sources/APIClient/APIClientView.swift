@@ -110,6 +110,7 @@ public struct APIClientView: View {
                             response: response,
                             error: errorMessage,
                             curlCommand: lastCurlCommand,
+                            requestURL: tab.url,
                             rewriteScript: binding(tab, \.rewriteScript),
                             rewriteScriptLogs: rewriteScriptLogs
                         ) { rewritten in
