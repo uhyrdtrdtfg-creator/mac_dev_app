@@ -4,6 +4,9 @@ struct StatusBadge: View {
     let statusCode: Int
     let duration: TimeInterval
     let size: Int
+    var timing: TimingBreakdown?
+
+    @State private var showTimingPopover = false
 
     var statusColor: Color {
         switch statusCode {
@@ -56,9 +59,28 @@ struct StatusBadge: View {
             .background(statusColor.opacity(0.12))
             .clipShape(RoundedRectangle(cornerRadius: 6))
 
-            Text(formattedDuration)
-                .font(.system(.caption, design: .monospaced))
-                .foregroundStyle(.secondary)
+            if let timing {
+                Button {
+                    showTimingPopover.toggle()
+                } label: {
+                    HStack(spacing: 3) {
+                        Text(formattedDuration)
+                        Image(systemName: "chart.bar.xaxis")
+                            .font(.system(size: 9))
+                    }
+                    .font(.system(.caption, design: .monospaced))
+                    .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .help("Show timing breakdown")
+                .popover(isPresented: $showTimingPopover, arrowEdge: .bottom) {
+                    TimingWaterfallView(timing: timing)
+                }
+            } else {
+                Text(formattedDuration)
+                    .font(.system(.caption, design: .monospaced))
+                    .foregroundStyle(.secondary)
+            }
 
             Text(formattedSize)
                 .font(.system(.caption, design: .monospaced))

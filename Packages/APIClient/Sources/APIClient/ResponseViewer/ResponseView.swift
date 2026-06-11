@@ -59,7 +59,7 @@ struct ResponseView: View {
             if let response {
                 // Status bar
                 HStack {
-                    StatusBadge(statusCode: response.statusCode, duration: response.duration, size: response.bodySize)
+                    StatusBadge(statusCode: response.statusCode, duration: response.duration, size: response.bodySize, timing: response.timing)
 
                     if isRewriteApplied {
                         Text("REWRITTEN")
@@ -492,7 +492,8 @@ console.log("Rewrite applied!");
             body: newBody,
             duration: response?.duration ?? 0,
             bodySize: newBody.count,
-            cookies: response?.cookies ?? []
+            cookies: response?.cookies ?? [],
+            timing: response?.timing
         )
 
         isRewriteApplied = true
@@ -527,7 +528,8 @@ console.log("Rewrite applied!");
             body: newBody,
             duration: response.duration,
             bodySize: newBody.count,
-            cookies: response.cookies
+            cookies: response.cookies,
+            timing: response.timing
         )
 
         isRewriteApplied = true

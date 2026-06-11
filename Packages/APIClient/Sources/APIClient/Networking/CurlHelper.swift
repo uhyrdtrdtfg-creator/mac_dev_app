@@ -78,6 +78,8 @@ public enum CurlHelper {
         var url = ""
         var headers: [(String, String)] = []
         var body: String?
+        var userCredentials: (username: String, password: String)?
+        var isDigest = false
 
         let tokens = tokenize(normalized)
         var i = 0
@@ -104,6 +106,18 @@ public enum CurlHelper {
                     if method == "GET" { method = "POST" }
                     i += 1
                 }
+            case "-u", "--user":
+                if i + 1 < tokens.count {
+                    let credentials = tokens[i + 1]
+                    if let colonIndex = credentials.firstIndex(of: ":") {
+                        userCredentials = (String(credentials[credentials.startIndex..<colonIndex]), String(credentials[credentials.index(after: colonIndex)...]))
+                    } else {
+                        userCredentials = (credentials, "")
+                    }
+                    i += 1
+                }
+            case "--digest":
+                isDigest = true
             default:
                 if !token.hasPrefix("-") && url.isEmpty {
                     url = token
@@ -113,7 +127,11 @@ public enum CurlHelper {
         }
 
         guard !url.isEmpty else { return nil }
-        return CurlParseResult(method: method, url: url, headers: headers, body: body)
+        let auth: AuthType? = userCredentials.map {
+            isDigest ? .digestAuth(username: $0.username, password: $0.password)
+                     : .basicAuth(username: $0.username, password: $0.password)
+        }
+        return CurlParseResult(method: method, url: url, headers: headers, body: body, auth: auth)
     }
 
     private static func tokenize(_ input: String) -> [String] {
@@ -160,4 +178,5 @@ public struct CurlParseResult: Sendable {
     public let url: String
     public let headers: [(String, String)]
     public let body: String?
+    public let auth: AuthType?
 }

@@ -138,6 +138,20 @@ private let tricky = CodeGenRequest(
     #expect(go.contains("req.SetBasicAuth(\"user\", \"pass\")"))
 }
 
+@Test func digestAuthAllLanguages() {
+    let request = CodeGenRequest(method: .get, url: "https://x.dev/", auth: .digestAuth(username: "user", password: "pass"))
+    // Native form where idiomatic
+    let python = RequestCodeGenerator.generate(.pythonRequests, request: request)
+    #expect(python.contains("from requests.auth import HTTPDigestAuth"))
+    #expect(python.contains("auth=HTTPDigestAuth('user', 'pass')"))
+    // Best-effort elsewhere: a comment noting digest auth, never a baked Authorization header
+    for lang in [CodeGenLanguage.swiftURLSession, .jsFetch, .nodeAxios, .goNetHTTP] {
+        let code = RequestCodeGenerator.generate(lang, request: request)
+        #expect(code.contains("Digest auth (user: user)"), "\(lang.rawValue)")
+        #expect(!code.contains("Authorization"), "\(lang.rawValue)")
+    }
+}
+
 @Test func oauth2BearerInjection() {
     let withToken = CodeGenRequest(method: .get, url: "https://x.dev/", auth: .oauth2(OAuth2Config(tokens: OAuth2Tokens(accessToken: "live-token-1"))))
     let without = CodeGenRequest(method: .get, url: "https://x.dev/", auth: .oauth2(OAuth2Config()))

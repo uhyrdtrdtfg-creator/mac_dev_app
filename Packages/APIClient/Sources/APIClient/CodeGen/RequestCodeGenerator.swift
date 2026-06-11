@@ -47,7 +47,8 @@ public struct CodeGenRequest: Sendable {
             method: HTTPMethod(rawValue: curl.method) ?? .get,
             url: curl.url,
             headers: curl.headers.map { KeyValuePair(key: $0.0, value: $0.1) },
-            body: body
+            body: body,
+            auth: curl.auth
         )
     }
 }
@@ -69,6 +70,7 @@ public enum RequestCodeGenerator {
         var multipartParts: [MultipartPart]?
         var placeholderComment: String?
         var basicAuth: (user: String, password: String)?
+        var digestAuth: (user: String, password: String)?
 
         var hasBody: Bool { jsonBody != nil || formPairs != nil || rawBody != nil }
     }
@@ -133,6 +135,8 @@ public enum RequestCodeGenerator {
                 let credentials = Data("\(user):\(password)".utf8).base64EncodedString()
                 headers.append(("Authorization", "Basic \(credentials)"))
             }
+        case .digestAuth(let user, let password):
+            plan.digestAuth = (user, password)
         case .apiKey(let key, let value, .header):
             headers.append((key, value))
         case .oauth2(let config):
@@ -222,6 +226,10 @@ public enum RequestCodeGenerator {
         } else if let comment = plan.placeholderComment {
             lines.append("// \(comment)")
         }
+        if let digest = plan.digestAuth {
+            lines.append("// Digest auth (user: \(digest.user)) — answer the challenge from a URLSessionTaskDelegate with")
+            lines.append("// URLCredential(user:password:persistence:.forSession) for NSURLAuthenticationMethodHTTPDigest.")
+        }
         lines.append("")
         lines.append("let (data, response) = try await URLSession.shared.data(for: request)")
         lines.append("print((response as? HTTPURLResponse)?.statusCode ?? 0)")
@@ -236,6 +244,7 @@ public enum RequestCodeGenerator {
         var lines = ["import requests"]
         let jsonPayload = plan.jsonBody.flatMap(validJSON)
         if jsonPayload != nil { lines.insert("import json", at: 0) }
+        if plan.digestAuth != nil { lines.append("from requests.auth import HTTPDigestAuth") }
         lines.append("")
         lines.append("url = \(pythonString(plan.url))")
 
@@ -295,6 +304,9 @@ public enum RequestCodeGenerator {
         if let basic = plan.basicAuth {
             callArgs.append("auth=(\(pythonString(basic.user)), \(pythonString(basic.password)))")
         }
+        if let digest = plan.digestAuth {
+            callArgs.append("auth=HTTPDigestAuth(\(pythonString(digest.user)), \(pythonString(digest.password)))")
+        }
         lines.append("")
         lines.append("response = requests.request(\(pythonString(plan.method)), \(callArgs.joined(separator: ", ")))")
         lines.append("print(response.status_code)")
@@ -314,6 +326,9 @@ public enum RequestCodeGenerator {
             lines.append("")
         }
         lines.append("(async () => {")
+        if let digest = plan.digestAuth {
+            lines.append("  // Digest auth (user: \(digest.user)) — fetch has no built-in support; use a library like digest-fetch.")
+        }
         if let parts = plan.multipartParts {
             lines.append("  // Content-Type with the multipart boundary is set automatically.")
             lines.append("  const form = new FormData();")
@@ -414,6 +429,9 @@ public enum RequestCodeGenerator {
         if let basic = plan.basicAuth {
             options.append("    auth: { username: \(jsString(basic.user)), password: \(jsString(basic.password)) },")
         }
+        if let digest = plan.digestAuth {
+            options.append("    // Digest auth (user: \(digest.user)) — axios has no built-in support; use a library like @mhoc/axios-digest-auth.")
+        }
         lines.append("async function main() {")
         lines.append("  const response = await axios({")
         lines.append(options.joined(separator: "\n"))
@@ -511,6 +529,9 @@ public enum RequestCodeGenerator {
         }
         if let basic = plan.basicAuth {
             lines.append("\treq.SetBasicAuth(\(goString(basic.user)), \(goString(basic.password)))")
+        }
+        if let digest = plan.digestAuth {
+            lines.append("\t// Digest auth (user: \(digest.user)) — net/http has no built-in support; use a digest-capable transport like github.com/icholy/digest.")
         }
         lines.append("")
         lines.append("\tresp, err := http.DefaultClient.Do(req)")

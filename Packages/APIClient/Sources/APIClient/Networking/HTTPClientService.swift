@@ -23,6 +23,13 @@ public struct HTTPResponse: Sendable, Equatable {
     public let duration: TimeInterval
     public let bodySize: Int
     public let cookies: [String]
+    public let timing: TimingBreakdown?
+
+    public init(statusCode: Int, headers: [String: String], body: Data, duration: TimeInterval, bodySize: Int, cookies: [String], timing: TimingBreakdown? = nil) {
+        self.statusCode = statusCode; self.headers = headers; self.body = body
+        self.duration = duration; self.bodySize = bodySize; self.cookies = cookies
+        self.timing = timing
+    }
 }
 
 public enum HTTPClientService {
@@ -83,6 +90,8 @@ public enum HTTPClientService {
             case .basicAuth(let username, let password):
                 let credentials = Data("\(username):\(password)".utf8).base64EncodedString()
                 request.setValue("Basic \(credentials)", forHTTPHeaderField: "Authorization")
+            case .digestAuth:
+                break // negotiated via the authentication challenge in TaskDelegate
             case .apiKey(let key, let value, let addTo):
                 switch addTo {
                 case .header: request.setValue(value, forHTTPHeaderField: key)
@@ -107,7 +116,7 @@ public enum HTTPClientService {
         withVaList(args) { NSLogv("[HTTPClient] " + message, $0) }
     }
 
-    public static func send(_ request: URLRequest) async throws -> HTTPResponse {
+    public static func send(_ request: URLRequest, settings: RequestSettings = RequestSettings(), digestCredentials: (username: String, password: String)? = nil) async throws -> HTTPResponse {
         // Debug logging (only when enabled)
         log("URL: %@", request.url?.absoluteString ?? "nil")
         log("Method: %@", request.httpMethod ?? "nil")
@@ -123,45 +132,68 @@ public enum HTTPClientService {
 
         var mutableRequest = request
         mutableRequest.httpShouldUsePipelining = false
+        mutableRequest.timeoutInterval = settings.timeoutSeconds
 
-        // Use download task to avoid "resource exceeds maximum size" error
         let start = Date()
-        let isDebug = debugEnabled
-        return try await withCheckedThrowingContinuation { continuation in
-            let task = session.downloadTask(with: mutableRequest) { localURL, response, error in
-                let duration = Date().timeIntervalSince(start)
+        let delegate = TaskDelegate(settings: settings, digestCredentials: digestCredentials)
+        let (data, response) = try await session.data(for: mutableRequest, delegate: delegate)
+        let duration = Date().timeIntervalSince(start)
 
-                if let error = error {
-                    if isDebug { NSLog("[HTTPClient] Download error: %@", String(describing: error)) }
-                    continuation.resume(throwing: error)
-                    return
-                }
+        guard let httpResponse = response as? HTTPURLResponse else { throw HTTPClientError.noResponse }
+        if debugEnabled { NSLog("[HTTPClient] Response status: %d", httpResponse.statusCode) }
 
-                guard let httpResponse = response as? HTTPURLResponse else {
-                    continuation.resume(throwing: HTTPClientError.noResponse)
-                    return
-                }
+        let headers: [String: String] = Dictionary(uniqueKeysWithValues: httpResponse.allHeaderFields.compactMap { key, value -> (String, String)? in
+            guard let k = key as? String, let v = value as? String else { return nil }; return (k, v)
+        })
+        let cookies = (headers["Set-Cookie"] ?? "").split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
 
-                if isDebug { NSLog("[HTTPClient] Response status: %d", httpResponse.statusCode) }
+        return HTTPResponse(
+            statusCode: httpResponse.statusCode, headers: headers, body: data,
+            duration: duration, bodySize: data.count, cookies: cookies,
+            timing: delegate.collectedTiming()
+        )
+    }
 
-                var data = Data()
-                if let localURL = localURL {
-                    do {
-                        data = try Data(contentsOf: localURL)
-                    } catch {
-                        if isDebug { NSLog("[HTTPClient] Failed to read downloaded file: %@", String(describing: error)) }
-                    }
-                }
+    /// Task-level delegate handling redirect policy, TLS relaxation (per request,
+    /// server-trust challenges only), and timing metrics.
+    /// @unchecked Sendable: URLSession serializes all delegate callbacks on its
+    /// delegate queue, and `collectedTiming()` is only called after the task
+    /// completes, so the mutable state is never accessed concurrently.
+    private final class TaskDelegate: NSObject, URLSessionTaskDelegate, @unchecked Sendable {
+        private let settings: RequestSettings
+        private let digestCredentials: (username: String, password: String)?
+        private var redirectCount = 0
+        private var timing: TimingBreakdown?
 
-                let headers: [String: String] = Dictionary(uniqueKeysWithValues: httpResponse.allHeaderFields.compactMap { key, value -> (String, String)? in
-                    guard let k = key as? String, let v = value as? String else { return nil }; return (k, v)
-                })
-                let cookies = (headers["Set-Cookie"] ?? "").split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+        init(settings: RequestSettings, digestCredentials: (username: String, password: String)? = nil) {
+            self.settings = settings
+            self.digestCredentials = digestCredentials
+        }
 
-                let result = HTTPResponse(statusCode: httpResponse.statusCode, headers: headers, body: data, duration: duration, bodySize: data.count, cookies: cookies)
-                continuation.resume(returning: result)
+        func collectedTiming() -> TimingBreakdown? { timing }
+
+        func urlSession(_ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse, newRequest: URLRequest) async -> URLRequest? {
+            redirectCount += 1
+            return RequestSettings.shouldFollowRedirect(count: redirectCount, settings: settings) ? newRequest : nil
+        }
+
+        func urlSession(_ session: URLSession, task: URLSessionTask, didReceive challenge: URLAuthenticationChallenge) async -> (URLSession.AuthChallengeDisposition, URLCredential?) {
+            if settings.insecureSSL,
+               challenge.protectionSpace.authenticationMethod == NSURLAuthenticationMethodServerTrust,
+               let trust = challenge.protectionSpace.serverTrust {
+                return (.useCredential, URLCredential(trust: trust))
             }
-            task.resume()
+            if challenge.protectionSpace.authenticationMethod == NSURLAuthenticationMethodHTTPDigest,
+               let credentials = digestCredentials {
+                // One attempt only — a second challenge means the credentials are wrong.
+                guard challenge.previousFailureCount == 0 else { return (.performDefaultHandling, nil) }
+                return (.useCredential, URLCredential(user: credentials.username, password: credentials.password, persistence: .forSession))
+            }
+            return (.performDefaultHandling, nil)
+        }
+
+        func urlSession(_ session: URLSession, task: URLSessionTask, didFinishCollecting metrics: URLSessionTaskMetrics) {
+            timing = TimingBreakdown.from(metrics: metrics)
         }
     }
 }

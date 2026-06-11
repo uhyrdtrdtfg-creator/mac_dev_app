@@ -4,6 +4,7 @@ enum AuthMethod: String, CaseIterable, Identifiable {
     case none = "None"
     case bearer = "Bearer Token"
     case basic = "Basic Auth"
+    case digest = "Digest Auth"
     case apiKey = "API Key"
     case oauth2 = "OAuth 2.0"
 
@@ -15,6 +16,8 @@ struct AuthEditor: View {
     @Binding var bearerToken: String
     @Binding var basicUsername: String
     @Binding var basicPassword: String
+    @Binding var digestUsername: String
+    @Binding var digestPassword: String
     @Binding var apiKeyName: String
     @Binding var apiKeyValue: String
     @Binding var apiKeyLocation: APIKeyLocation
@@ -71,6 +74,36 @@ struct AuthEditor: View {
                             .fontWeight(.medium)
                             .foregroundStyle(.secondary)
                         SecureField("Password", text: $basicPassword)
+                            .textFieldStyle(.plain)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 10)
+                            .background(.fill.tertiary)
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                            .overlay(RoundedRectangle(cornerRadius: 8).stroke(.separator, lineWidth: 0.5))
+                    }
+                }
+
+            case .digest:
+                HStack(spacing: 14) {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Username")
+                            .font(.caption)
+                            .fontWeight(.medium)
+                            .foregroundStyle(.secondary)
+                        TextField("Username", text: $digestUsername)
+                            .textFieldStyle(.plain)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 10)
+                            .background(.fill.tertiary)
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                            .overlay(RoundedRectangle(cornerRadius: 8).stroke(.separator, lineWidth: 0.5))
+                    }
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Password")
+                            .font(.caption)
+                            .fontWeight(.medium)
+                            .foregroundStyle(.secondary)
+                        SecureField("Password", text: $digestPassword)
                             .textFieldStyle(.plain)
                             .padding(.horizontal, 12)
                             .padding(.vertical, 10)

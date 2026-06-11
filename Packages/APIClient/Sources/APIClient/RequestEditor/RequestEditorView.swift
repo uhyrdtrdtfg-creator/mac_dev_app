@@ -6,6 +6,7 @@ enum RequestTab: String, CaseIterable, Identifiable {
     case body = "Body"
     case auth = "Auth"
     case scripts = "Scripts"
+    case settings = "Settings"
 
     var id: String { rawValue }
 }
@@ -28,12 +29,15 @@ struct RequestEditorView: View {
     @Binding var bearerToken: String
     @Binding var basicUsername: String
     @Binding var basicPassword: String
+    @Binding var digestUsername: String
+    @Binding var digestPassword: String
     @Binding var apiKeyName: String
     @Binding var apiKeyValue: String
     @Binding var apiKeyLocation: APIKeyLocation
     @Binding var oauthConfig: OAuth2Config
     @Binding var preScript: String
     @Binding var postScript: String
+    @Binding var requestSettings: RequestSettings
     let consoleLogs: [ScriptConsoleOutput]
     let isSending: Bool
     let onSend: () -> Void
@@ -45,6 +49,7 @@ struct RequestEditorView: View {
         case .none: nil
         case .bearer: .bearerToken(bearerToken)
         case .basic: .basicAuth(username: basicUsername, password: basicPassword)
+        case .digest: .digestAuth(username: digestUsername, password: digestPassword)
         case .apiKey: .apiKey(key: apiKeyName, value: apiKeyValue, addTo: apiKeyLocation)
         case .oauth2: .oauth2(oauthConfig)
         }
@@ -79,9 +84,11 @@ struct RequestEditorView: View {
                     case .body:
                         BodyEditor(bodyType: $bodyType, jsonBody: $jsonBody, formDataPairs: $formDataPairs, rawBody: $rawBody, graphqlQuery: $graphqlQuery, graphqlVariables: $graphqlVariables, multipartParts: $multipartParts, binaryFilePath: $binaryFilePath, binaryMimeType: $binaryMimeType, url: url, headers: headers, auth: currentAuth)
                     case .auth:
-                        AuthEditor(authMethod: $authMethod, bearerToken: $bearerToken, basicUsername: $basicUsername, basicPassword: $basicPassword, apiKeyName: $apiKeyName, apiKeyValue: $apiKeyValue, apiKeyLocation: $apiKeyLocation, oauthConfig: $oauthConfig)
+                        AuthEditor(authMethod: $authMethod, bearerToken: $bearerToken, basicUsername: $basicUsername, basicPassword: $basicPassword, digestUsername: $digestUsername, digestPassword: $digestPassword, apiKeyName: $apiKeyName, apiKeyValue: $apiKeyValue, apiKeyLocation: $apiKeyLocation, oauthConfig: $oauthConfig)
                     case .scripts:
                         ScriptEditorView(preScript: $preScript, postScript: $postScript, consoleLogs: consoleLogs)
+                    case .settings:
+                        RequestSettingsEditor(settings: $requestSettings)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)

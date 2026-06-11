@@ -94,12 +94,15 @@ public struct APIClientView: View {
                             bearerToken: binding(tab, \.bearerToken),
                             basicUsername: binding(tab, \.basicUsername),
                             basicPassword: binding(tab, \.basicPassword),
+                            digestUsername: binding(tab, \.digestUsername),
+                            digestPassword: binding(tab, \.digestPassword),
                             apiKeyName: binding(tab, \.apiKeyName),
                             apiKeyValue: binding(tab, \.apiKeyValue),
                             apiKeyLocation: apiKeyLocationBinding(tab),
                             oauthConfig: oauthConfigBinding(tab),
                             preScript: binding(tab, \.preScript),
                             postScript: binding(tab, \.postScript),
+                            requestSettings: requestSettingsBinding(tab),
                             consoleLogs: consoleLogs,
                             isSending: isSending,
                             onSend: sendRequest
@@ -515,6 +518,33 @@ public struct APIClientView: View {
         )
     }
 
+    private func requestSettingsBinding(_ tab: OpenTabModel) -> Binding<RequestSettings> {
+        Binding(
+            get: { tab.requestSettings },
+            set: { newValue in
+                tab.requestSettings = newValue
+                markDirty(tab)
+            }
+        )
+    }
+
+    private func upsertCookies(_ captured: [CookieRecord]) {
+        let existing = (try? modelContext.fetch(FetchDescriptor<CookieModel>())) ?? []
+        for record in captured {
+            if let match = existing.first(where: { $0.name == record.name && $0.domain == record.domain && $0.path == record.path }) {
+                match.value = record.value
+                match.expiresAt = record.expiresAt
+                match.isSecure = record.isSecure
+                match.updatedAt = Date()
+            } else {
+                modelContext.insert(CookieModel(
+                    domain: record.domain, name: record.name, value: record.value,
+                    path: record.path, expiresAt: record.expiresAt, isSecure: record.isSecure
+                ))
+            }
+        }
+    }
+
     private func markDirty(_ tab: OpenTabModel) {
         tab.isDirty = true
         tab.updatedAt = Date()
@@ -560,6 +590,7 @@ public struct APIClientView: View {
             case .none: nil
             case .bearer: .bearerToken(tab.bearerToken)
             case .basic: .basicAuth(username: tab.basicUsername, password: tab.basicPassword)
+            case .digest: .digestAuth(username: tab.digestUsername, password: tab.digestPassword)
             case .apiKey: .apiKey(key: tab.apiKeyName, value: tab.apiKeyValue, addTo: apiKeyLocEnum)
             case .oauth2: .oauth2(tab.oauthConfig)
             }
@@ -573,6 +604,12 @@ public struct APIClientView: View {
         let preScript = tab.preScript
         let postScript = tab.postScript
         let rewriteScript = tab.rewriteScript
+        let settings = tab.requestSettings
+        let storedCookies: [CookieRecord] = {
+            guard settings.sendCookies else { return [] }
+            let all = (try? modelContext.fetch(FetchDescriptor<CookieModel>())) ?? []
+            return all.map { CookieRecord(domain: $0.domain, name: $0.name, value: $0.value, path: $0.path, expiresAt: $0.expiresAt, isSecure: $0.isSecure) }
+        }()
 
         Task {
             var requestBody = currentBody
@@ -594,9 +631,12 @@ public struct APIClientView: View {
                 auth: currentAuth,
                 preScript: preScript.isEmpty ? nil : preScript,
                 postScript: postScript.isEmpty ? nil : postScript,
-                rewriteScript: rewriteScript.isEmpty ? nil : rewriteScript
+                rewriteScript: rewriteScript.isEmpty ? nil : rewriteScript,
+                settings: settings,
+                storedCookies: storedCookies
             )
 
+            if !result.capturedCookies.isEmpty { upsertCookies(result.capturedCookies) }
             consoleLogs = result.consoleLogs
             if let resp = result.response {
                 response = resp
@@ -750,6 +790,7 @@ public struct APIClientView: View {
         case .none: nil
         case .bearer: .bearerToken(tab.bearerToken)
         case .basic: .basicAuth(username: tab.basicUsername, password: tab.basicPassword)
+        case .digest: .digestAuth(username: tab.digestUsername, password: tab.digestPassword)
         case .apiKey: .apiKey(key: tab.apiKeyName, value: tab.apiKeyValue, addTo: APIKeyLocation(rawValue: tab.apiKeyLocation) ?? .header)
         case .oauth2: .oauth2(tab.oauthConfig)
         }
@@ -784,6 +825,19 @@ public struct APIClientView: View {
             }
         } else {
             tab.bodyType = BodyType.none.rawValue
+        }
+
+        switch result.auth {
+        case .basicAuth(let username, let password):
+            tab.authMethod = AuthMethod.basic.rawValue
+            tab.basicUsername = username
+            tab.basicPassword = password
+        case .digestAuth(let username, let password):
+            tab.authMethod = AuthMethod.digest.rawValue
+            tab.digestUsername = username
+            tab.digestPassword = password
+        default:
+            break
         }
 
         markDirty(tab)

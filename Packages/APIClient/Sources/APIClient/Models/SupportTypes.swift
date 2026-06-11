@@ -29,6 +29,7 @@ public enum RequestBody: Codable, Sendable {
 public enum AuthType: Codable, Sendable {
     case bearerToken(String)
     case basicAuth(username: String, password: String)
+    case digestAuth(username: String, password: String)
     case apiKey(key: String, value: String, addTo: APIKeyLocation)
     case oauth2(OAuth2Config)
 }

@@ -12,7 +12,6 @@ public final class HTTPRequestModel {
     public var authJSON: Data?
     public var collection: HTTPCollectionModel?
     public var createdAt: Date = Date()
-    public var lastExecutedAt: Date?
 
     public init(name: String = "New Request", method: String = "GET", url: String = "") {
         self.id = UUID(); self.name = name; self.method = method; self.url = url; self.createdAt = Date()

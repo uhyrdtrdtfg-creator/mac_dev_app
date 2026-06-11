@@ -48,3 +48,38 @@ import Foundation
 @Test func curlParseInvalid() {
     #expect(CurlHelper.parse("not a curl command") == nil)
 }
+
+@Test func curlParseBasicUser() {
+    let result = CurlHelper.parse("curl -u admin:s3cret 'https://api.example.com/users'")
+    guard case .basicAuth(let username, let password) = result?.auth else {
+        Issue.record("expected basicAuth, got \(String(describing: result?.auth))")
+        return
+    }
+    #expect(username == "admin")
+    #expect(password == "s3cret")
+}
+
+@Test func curlParseDigest() {
+    let result = CurlHelper.parse("curl --digest -u admin:s3cret 'https://api.example.com/users'")
+    guard case .digestAuth(let username, let password) = result?.auth else {
+        Issue.record("expected digestAuth, got \(String(describing: result?.auth))")
+        return
+    }
+    #expect(username == "admin")
+    #expect(password == "s3cret")
+}
+
+@Test func curlParseDigestAfterUser() {
+    let result = CurlHelper.parse("curl -u admin: --digest 'https://api.example.com/users'")
+    guard case .digestAuth(let username, let password) = result?.auth else {
+        Issue.record("expected digestAuth, got \(String(describing: result?.auth))")
+        return
+    }
+    #expect(username == "admin")
+    #expect(password.isEmpty)
+}
+
+@Test func curlParseNoAuth() {
+    let result = CurlHelper.parse("curl 'https://api.example.com/users'")
+    #expect(result?.auth == nil)
+}

@@ -5,6 +5,12 @@ public struct ExecutionResult: Sendable {
     public let error: String?
     public let consoleLogs: [ScriptConsoleOutput]
     public let assertionFailed: Bool
+    public let capturedCookies: [CookieRecord]
+
+    public init(response: HTTPResponse?, error: String?, consoleLogs: [ScriptConsoleOutput], assertionFailed: Bool, capturedCookies: [CookieRecord] = []) {
+        self.response = response; self.error = error; self.consoleLogs = consoleLogs
+        self.assertionFailed = assertionFailed; self.capturedCookies = capturedCookies
+    }
 }
 
 public enum RequestExecutor {
@@ -31,7 +37,9 @@ public enum RequestExecutor {
         auth: AuthType?,
         preScript: String?,
         postScript: String?,
-        rewriteScript: String?
+        rewriteScript: String?,
+        settings: RequestSettings = RequestSettings(),
+        storedCookies: [CookieRecord] = []
     ) async -> ExecutionResult {
         var consoleLogs: [ScriptConsoleOutput] = []
         var assertionFailed = false
@@ -110,10 +118,30 @@ public enum RequestExecutor {
                 }
             }
 
+            // Cookie jar: attach matching stored cookies to the final (template-resolved)
+            // URL — unless the user typed their own Cookie header, which wins entirely.
+            if settings.sendCookies, !storedCookies.isEmpty,
+               request.value(forHTTPHeaderField: "Cookie") == nil,
+               let finalURL = request.url {
+                let matched = CookieJar.matching(storedCookies, for: finalURL, now: Date())
+                if !matched.isEmpty {
+                    request.setValue(CookieJar.headerValue(matched), forHTTPHeaderField: "Cookie")
+                    consoleLogs.append(ScriptConsoleOutput(message: "[DEBUG] Cookie jar attached \(matched.count) cookie(s)"))
+                }
+            }
+
             // Send
             consoleLogs.append(ScriptConsoleOutput(message: "[DEBUG] Final URL: \(request.url?.absoluteString ?? "nil")"))
             consoleLogs.append(ScriptConsoleOutput(message: "[DEBUG] Final headers: \(request.allHTTPHeaderFields?.keys.joined(separator: ", ") ?? "none")"))
-            let httpResponse = try await HTTPClientService.send(request)
+            let digestCredentials: (username: String, password: String)? = {
+                if case .digestAuth(let username, let password) = auth { return (username, password) }
+                return nil
+            }()
+            let httpResponse = try await HTTPClientService.send(request, settings: settings, digestCredentials: digestCredentials)
+            let capturedCookies: [CookieRecord] = {
+                guard settings.storeCookies, let finalURL = request.url else { return [] }
+                return CookieJar.capture(responseHeaders: httpResponse.headers, requestURL: finalURL)
+            }()
 
             // Run post-request script
             if let postScript, !postScript.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -160,7 +188,8 @@ public enum RequestExecutor {
                     body: newBody,
                     duration: httpResponse.duration,
                     bodySize: newBody.count,
-                    cookies: httpResponse.cookies
+                    cookies: httpResponse.cookies,
+                    timing: httpResponse.timing
                 )
             }
 
@@ -168,7 +197,8 @@ public enum RequestExecutor {
                 response: finalResponse,
                 error: nil,
                 consoleLogs: consoleLogs,
-                assertionFailed: assertionFailed
+                assertionFailed: assertionFailed,
+                capturedCookies: capturedCookies
             )
 
         } catch {

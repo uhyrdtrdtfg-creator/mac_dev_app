@@ -27,10 +27,13 @@ public final class OpenTabModel {
     public var bearerToken: String = ""
     public var basicUsername: String = ""
     public var basicPassword: String = ""
+    public var digestUsername: String = ""
+    public var digestPassword: String = ""
     public var apiKeyName: String = ""
     public var apiKeyValue: String = ""
     public var apiKeyLocation: String = "header"
     public var oauthConfigJSON: Data?
+    public var requestSettingsJSON: Data?
     public var preScript: String = ""
     public var postScript: String = ""
     public var rewriteScript: String = ""
@@ -84,5 +87,13 @@ public final class OpenTabModel {
             return (try? JSONDecoder().decode(OAuth2Config.self, from: d)) ?? OAuth2Config()
         }
         set { oauthConfigJSON = try? JSONEncoder().encode(newValue) }
+    }
+
+    public var requestSettings: RequestSettings {
+        get {
+            guard let d = requestSettingsJSON else { return RequestSettings() }
+            return (try? JSONDecoder().decode(RequestSettings.self, from: d)) ?? RequestSettings()
+        }
+        set { requestSettingsJSON = try? JSONEncoder().encode(newValue) }
     }
 }
