@@ -16,6 +16,7 @@ public struct APIClientView: View {
     @State private var lastCurlCommand: String?
     @State private var showImportCurl = false
     @State private var curlImportText = ""
+    @State private var showCodeGen = false
     @State private var showHistory = false
     @State private var showSaved = false
     @State private var showSaveDialog = false
@@ -329,6 +330,18 @@ public struct APIClientView: View {
                 }
                 .padding()
                 .frame(width: 500, height: 300)
+            }
+
+            Button {
+                showCodeGen = true
+            } label: {
+                Image(systemName: "curlybraces").font(.caption)
+            }
+            .buttonStyle(.bordered)
+            .help("Generate Code")
+            .disabled(activeTab == nil)
+            .sheet(isPresented: $showCodeGen) {
+                CodeGenSheet(request: currentCodeGenRequest())
             }
 
             Button {
@@ -648,6 +661,33 @@ public struct APIClientView: View {
         } catch {
             print("Failed to clear history: \(error)")
         }
+    }
+
+    private func currentCodeGenRequest() -> CodeGenRequest {
+        guard let tab = activeTab else { return CodeGenRequest(method: .get, url: "") }
+
+        let body: RequestBody? = switch BodyType(rawValue: tab.bodyType) ?? .none {
+        case .none: nil
+        case .json: .json(tab.jsonBody)
+        case .formData: .formData(tab.formDataPairs)
+        case .raw: .raw(tab.rawBody)
+        }
+
+        let auth: AuthType? = switch AuthMethod(rawValue: tab.authMethod) ?? .none {
+        case .none: nil
+        case .bearer: .bearerToken(tab.bearerToken)
+        case .basic: .basicAuth(username: tab.basicUsername, password: tab.basicPassword)
+        case .apiKey: .apiKey(key: tab.apiKeyName, value: tab.apiKeyValue, addTo: APIKeyLocation(rawValue: tab.apiKeyLocation) ?? .header)
+        }
+
+        return CodeGenRequest(
+            method: HTTPMethod(rawValue: tab.method) ?? .get,
+            url: tab.url,
+            headers: tab.headers,
+            queryParams: tab.queryParams,
+            body: body,
+            auth: auth
+        )
     }
 
     private func importCurl() {
