@@ -60,6 +60,25 @@ Google Ch   999 xiaobo   30u  IPv4  0x2efc2860835f111      0t0  TCP 127.0.0.1:92
     #expect(ports[0].port == 7000)
 }
 
+@Test func lsofParseSurvivesNonUTF8Bytes() {
+    // Real lsof output can contain raw non-UTF8 bytes in command names
+    // (observed live: a process whose name lsof renders with raw \x91 bytes).
+    // runCommand must decode lossily — strict UTF-8 decoding returns nil and
+    // would silently drop every row.
+    var data = Data("COMMAND     PID   USER   FD   TYPE             DEVICE SIZE/OFF NODE NAME\nweird".utf8)
+    data.append(contentsOf: [0x91, 0x91])  // invalid UTF-8 continuation bytes
+    data.append(Data("app  1664 xiaobo    5u  IPv4  0x2efc2860835f111      0t0  TCP 127.0.0.1:1864 (LISTEN)\nnode      12345 xiaobo   23u  IPv4  0x2efc2860835f2ab      0t0  TCP 127.0.0.1:3000 (LISTEN)\n".utf8))
+    #expect(String(data: data, encoding: .utf8) == nil)  // strict decode fails on this input
+
+    let ports = ProcessManager.parseLsofOutput(String(decoding: data, as: UTF8.self))
+    #expect(ports.count == 2)
+    #expect(ports.map(\.port) == [1864, 3000])
+    let weird = ports.first { $0.port == 1864 }
+    #expect(weird?.pid == 1664)
+    #expect(weird?.address == "127.0.0.1")
+    #expect(weird?.processName == "weird\u{FFFD}\u{FFFD}app")
+}
+
 @Test func psParseBasic() {
     let text = """
         1   0.0  0.1  20960 /sbin/launchd

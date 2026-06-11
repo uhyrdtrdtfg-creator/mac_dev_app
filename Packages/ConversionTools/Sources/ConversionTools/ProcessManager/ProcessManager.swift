@@ -119,6 +119,10 @@ public enum ProcessManager {
         }
         let data = (try? stdout.fileHandleForReading.readToEnd()) ?? Data()
         process.waitUntilExit()
-        return String(data: data, encoding: .utf8) ?? ""
+        // Lossy decode: lsof/ps output can contain non-UTF8 bytes (e.g. process
+        // names with raw escape bytes). Strict decoding would return nil and
+        // silently discard the entire output; lossy decoding replaces invalid
+        // sequences with U+FFFD and keeps every row parseable.
+        return String(decoding: data, as: UTF8.self)
     }
 }
