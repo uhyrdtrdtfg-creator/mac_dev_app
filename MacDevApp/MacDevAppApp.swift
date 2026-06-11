@@ -127,6 +127,7 @@ struct MacDevAppApp: App {
         handoff.destinations = [
             .init(id: "json-formatter", name: "JSON Formatter", icon: "curlybraces"),
             .init(id: "json-to-code", name: "JSON → Code", icon: "chevron.left.forwardslash.chevron.right"),
+            .init(id: "plist-converter", name: "Plist Converter", icon: "list.bullet.rectangle"),
             .init(id: "sql-formatter", name: "SQL Formatter", icon: "tablecells.badge.ellipsis"),
             .init(id: "sql-result", name: "SQL Result → CSV/SQL", icon: "tablecells.fill"),
             .init(id: "base64-codec", name: "Base64", icon: "doc.text"),
@@ -173,6 +174,7 @@ struct MacDevAppApp: App {
             JSONYamlView.descriptor,
             JSONCSVView.descriptor,
             JSONTOMLView.descriptor,
+            PlistConverterView.descriptor,
             MarkdownPreviewView.descriptor,
             TextDiffView.descriptor,
             OCRView.descriptor,
