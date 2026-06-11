@@ -33,6 +33,21 @@ public enum JWTVerification: Sendable, Equatable {
     case error(String)
 }
 
+public enum JWTAlgorithm: String, CaseIterable, Identifiable, Sendable {
+    case hs256 = "HS256", hs384 = "HS384", hs512 = "HS512"
+    case rs256 = "RS256", rs384 = "RS384", rs512 = "RS512"
+    public var id: String { rawValue }
+    public var isHMAC: Bool { rawValue.hasPrefix("HS") }
+
+    var rsaSignatureAlgorithm: SecKeyAlgorithm {
+        switch self {
+        case .rs384: .rsaSignatureMessagePKCS1v15SHA384
+        case .rs512: .rsaSignatureMessagePKCS1v15SHA512
+        default: .rsaSignatureMessagePKCS1v15SHA256
+        }
+    }
+}
+
 public enum JWTError: Error, LocalizedError {
     case malformed
     case invalidBase64
@@ -101,7 +116,69 @@ public enum JWTTool {
         }
     }
 
+    /// Sign a JWT. `key` is the HMAC secret for HS* or a PEM RSA private key (PKCS#1 or PKCS#8) for RS*.
+    /// The payload JSON string is encoded as-is (preserving key order); the header is auto-built and
+    /// merged with optional extra header JSON (user keys win, except `alg`).
+    public static func sign(payloadJSON: String, algorithm: JWTAlgorithm, key: String, extraHeader: String? = nil) -> (token: String?, error: String?) {
+        let payload = payloadJSON.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !payload.isEmpty,
+              let payloadObj = try? JSONSerialization.jsonObject(with: Data(payload.utf8)),
+              payloadObj is [String: Any] else {
+            return (nil, "Payload must be a valid JSON object")
+        }
+        guard !key.isEmpty else {
+            return (nil, algorithm.isHMAC ? "HMAC secret cannot be empty" : "Private key cannot be empty")
+        }
+
+        var headerJSON = #"{"alg":"\#(algorithm.rawValue)","typ":"JWT"}"#
+        if let extra = extraHeader?.trimmingCharacters(in: .whitespacesAndNewlines), !extra.isEmpty {
+            guard let extraObj = try? JSONSerialization.jsonObject(with: Data(extra.utf8)) as? [String: Any] else {
+                return (nil, "Custom header must be a valid JSON object")
+            }
+            var header: [String: Any] = ["alg": algorithm.rawValue, "typ": "JWT"]
+            for (k, v) in extraObj where k != "alg" { header[k] = v }
+            guard let headerData = try? JSONSerialization.data(withJSONObject: header, options: [.sortedKeys, .withoutEscapingSlashes]) else {
+                return (nil, "Cannot serialize header JSON")
+            }
+            headerJSON = String(decoding: headerData, as: UTF8.self)
+        }
+
+        let signingInput = "\(base64URLEncode(Data(headerJSON.utf8))).\(base64URLEncode(Data(payload.utf8)))"
+        let inputData = Data(signingInput.utf8)
+
+        let signature: Data
+        switch algorithm {
+        case .hs256: signature = signHMAC(inputData, secret: key, hash: SHA256.self)
+        case .hs384: signature = signHMAC(inputData, secret: key, hash: SHA384.self)
+        case .hs512: signature = signHMAC(inputData, secret: key, hash: SHA512.self)
+        case .rs256, .rs384, .rs512:
+            guard let secKey = privateSecKey(fromPEM: key) else {
+                return (nil, "Invalid RSA private key PEM (expecting -----BEGIN RSA PRIVATE KEY----- or -----BEGIN PRIVATE KEY-----)")
+            }
+            var error: Unmanaged<CFError>?
+            guard let sig = SecKeyCreateSignature(secKey, algorithm.rsaSignatureAlgorithm, inputData as CFData, &error) else {
+                let reason = (error?.takeRetainedValue()).map { CFErrorCopyDescription($0) as String } ?? "unknown error"
+                return (nil, "Signing failed: \(reason)")
+            }
+            signature = sig as Data
+        }
+        return ("\(signingInput).\(base64URLEncode(signature))", nil)
+    }
+
+    /// Derive the public key PEM from an RSA private key PEM (e.g. to self-verify a freshly signed token).
+    public static func publicKeyPEM(fromPrivatePEM pem: String) -> String? {
+        guard let privateKey = privateSecKey(fromPEM: pem),
+              let publicKey = SecKeyCopyPublicKey(privateKey),
+              let data = SecKeyCopyExternalRepresentation(publicKey, nil) else { return nil }
+        let base64 = (data as Data).base64EncodedString(options: [.lineLength64Characters, .endLineWithLineFeed])
+        return "-----BEGIN PUBLIC KEY-----\n\(base64)\n-----END PUBLIC KEY-----"
+    }
+
     // MARK: - HMAC
+
+    private static func signHMAC<H: HashFunction>(_ input: Data, secret: String, hash: H.Type) -> Data {
+        Data(CryptoKit.HMAC<H>.authenticationCode(for: input, using: SymmetricKey(data: Data(secret.utf8))))
+    }
 
     private static func verifyHMAC<H: HashFunction>(_ input: Data, _ signature: Data, secret: String, hash: H.Type) -> JWTVerification {
         let symKey = SymmetricKey(data: Data(secret.utf8))
@@ -136,6 +213,39 @@ public enum JWTTool {
         // SecKeyCreateWithData expects a PKCS#1 RSAPublicKey; strip SPKI wrapper if present.
         let keyData = stripSPKIHeader(der) ?? der
         return SecKeyCreateWithData(keyData as CFData, attrs as CFDictionary, &error)
+    }
+
+    private static func privateSecKey(fromPEM pem: String) -> SecKey? {
+        let cleaned = pem
+            .replacingOccurrences(of: "-----BEGIN RSA PRIVATE KEY-----", with: "")
+            .replacingOccurrences(of: "-----END RSA PRIVATE KEY-----", with: "")
+            .replacingOccurrences(of: "-----BEGIN PRIVATE KEY-----", with: "")
+            .replacingOccurrences(of: "-----END PRIVATE KEY-----", with: "")
+            .components(separatedBy: .whitespacesAndNewlines).joined()
+        guard let der = Data(base64Encoded: cleaned) else { return nil }
+        let attrs: [String: Any] = [
+            kSecAttrKeyType as String: kSecAttrKeyTypeRSA,
+            kSecAttrKeyClass as String: kSecAttrKeyClassPrivate
+        ]
+        var error: Unmanaged<CFError>?
+        // SecKeyCreateWithData expects a PKCS#1 RSAPrivateKey; strip the PKCS#8 wrapper if present.
+        let keyData = stripPKCS8Header(der) ?? der
+        return SecKeyCreateWithData(keyData as CFData, attrs as CFDictionary, &error)
+    }
+
+    /// Best-effort extraction of the PKCS#1 RSAPrivateKey from a PKCS#8 PrivateKeyInfo DER blob.
+    private static func stripPKCS8Header(_ der: Data) -> Data? {
+        let bytes = [UInt8](der)
+        // PKCS#8: SEQUENCE { INTEGER 0, SEQUENCE { OID rsaEncryption, NULL }, OCTET STRING { RSAPrivateKey } }
+        let rsaOIDHeader: [UInt8] = [0x30, 0x0d, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x01, 0x05, 0x00]
+        guard bytes.first == 0x30, let range = find(rsaOIDHeader, in: bytes) else { return nil }
+        var idx = range + rsaOIDHeader.count
+        guard idx < bytes.count, bytes[idx] == 0x04 else { return nil } // OCTET STRING
+        idx += 1
+        guard let (_, lenBytes) = parseDERLength(bytes, at: idx) else { return nil }
+        idx += lenBytes
+        guard idx < bytes.count else { return nil }
+        return Data(bytes[idx...])
     }
 
     /// Best-effort extraction of the PKCS#1 RSAPublicKey from an SPKI (X.509 SubjectPublicKeyInfo) DER blob.
@@ -224,6 +334,13 @@ public enum JWTTool {
     }
 
     // MARK: - Encoding helpers
+
+    static func base64URLEncode(_ data: Data) -> String {
+        data.base64EncodedString()
+            .replacingOccurrences(of: "+", with: "-")
+            .replacingOccurrences(of: "/", with: "_")
+            .replacingOccurrences(of: "=", with: "")
+    }
 
     static func base64URLDecode(_ string: String) throws -> Data {
         var s = string.replacingOccurrences(of: "-", with: "+").replacingOccurrences(of: "_", with: "/")
