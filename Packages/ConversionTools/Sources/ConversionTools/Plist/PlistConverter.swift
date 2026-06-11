@@ -52,6 +52,12 @@ public enum PlistConverter {
         do {
             let object = try PropertyListSerialization.propertyList(from: data, format: nil)
             let jsonObject = plistToJSONObject(object)
+            // JSONSerialization raises an uncatchable ObjC exception for non-finite numbers
+            // (e.g. <real>nan</real> or <real>+infinity</real>, which are valid plist values),
+            // so validate first. Wrap in an array: isValidJSONObject rejects top-level fragments.
+            guard JSONSerialization.isValidJSONObject([jsonObject]) else {
+                return PlistConvertResult(output: nil, error: "Plist contains a value that cannot be represented in JSON (e.g. a non-finite <real> such as nan or infinity).")
+            }
             let jsonData = try JSONSerialization.data(withJSONObject: jsonObject, options: [.prettyPrinted, .sortedKeys, .fragmentsAllowed])
             return PlistConvertResult(output: String(data: jsonData, encoding: .utf8) ?? "", error: nil)
         } catch { return PlistConvertResult(output: nil, error: friendlyError(error)) }

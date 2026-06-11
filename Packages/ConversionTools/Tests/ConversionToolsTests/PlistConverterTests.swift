@@ -125,6 +125,29 @@ private let xmlFixture = """
     #expect(error.contains("$.a.b[1]"))
 }
 
+@Test func plistNonFiniteRealReturnsErrorInsteadOfCrashing() throws {
+    // NaN/infinity reals are valid plist content but cannot be represented in JSON;
+    // JSONSerialization would abort the process with an ObjC exception if not caught early.
+    for value in ["nan", "+infinity", "-infinity"] {
+        let xml = "<plist version=\"1.0\"><dict><key>r</key><real>\(value)</real></dict></plist>"
+        let result = PlistConverter.plistToJSON(xml)
+        #expect(result.output == nil)
+        #expect((result.error ?? "").contains("JSON"))
+    }
+
+    // Same via binary plist data.
+    let object: [String: Any] = ["r": Double.nan]
+    let binary = try PropertyListSerialization.data(fromPropertyList: object, format: .binary, options: 0)
+    let result = PlistConverter.plistDataToJSON(binary)
+    #expect(result.output == nil)
+    #expect(result.error != nil)
+
+    // Non-finite reals are still fine for non-JSON modes.
+    let formatted = PlistConverter.formatXML("<plist version=\"1.0\"><dict><key>r</key><real>nan</real></dict></plist>")
+    #expect(formatted.error == nil)
+    #expect((formatted.output ?? "").contains("<real>nan</real>"))
+}
+
 @Test func plistFormatValidate() throws {
     let messy = "<plist version=\"1.0\"><dict><key>z</key><string>last</string><key>a</key><integer>1</integer></dict></plist>"
     let result = PlistConverter.formatXML(messy)
