@@ -83,6 +83,7 @@ struct ContentView: View {
         case "url-codec": URLCodecView()
         case "base64-codec": Base64CodecView()
         case "json-formatter": JSONFormatterView()
+        case "xml-formatter": XMLFormatterView()
         case "uuid-generator": UUIDGeneratorView()
         case "random-string": RandomStringGeneratorView()
         case "base-converter": BaseConverterView()

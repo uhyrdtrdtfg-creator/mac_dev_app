@@ -126,6 +126,7 @@ struct MacDevAppApp: App {
         handoff.onSelect = { id in registry.selectedToolID = id }
         handoff.destinations = [
             .init(id: "json-formatter", name: "JSON Formatter", icon: "curlybraces"),
+            .init(id: "xml-formatter", name: "XML Formatter", icon: "tag"),
             .init(id: "json-to-code", name: "JSON → Code", icon: "chevron.left.forwardslash.chevron.right"),
             .init(id: "sql-formatter", name: "SQL Formatter", icon: "tablecells.badge.ellipsis"),
             .init(id: "sql-result", name: "SQL Result → CSV/SQL", icon: "tablecells.fill"),
@@ -160,6 +161,7 @@ struct MacDevAppApp: App {
             URLCodecView.descriptor,
             Base64CodecView.descriptor,
             JSONFormatterView.descriptor,
+            XMLFormatterView.descriptor,
             UUIDGeneratorView.descriptor,
             RandomStringGeneratorView.descriptor,
             BaseConverterView.descriptor,
