@@ -21,6 +21,7 @@ struct SavedRequestsView: View {
 
     enum ImportFormat: String, CaseIterable, Identifiable {
         case postmanCollection = "Postman Collection"
+        case openAPI = "OpenAPI"
         case curl = "cURL Commands"
         var id: String { rawValue }
     }
@@ -225,9 +226,7 @@ struct SavedRequestsView: View {
             }
             .pickerStyle(.segmented)
 
-            Text(importFormat == .postmanCollection
-                 ? "Paste Postman Collection JSON (v2.1)"
-                 : "Paste one or more cURL commands (one per line)")
+            Text(importFormatHint)
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
@@ -261,12 +260,27 @@ struct SavedRequestsView: View {
         .frame(width: 500, height: 350)
     }
 
+    private var importFormatHint: String {
+        switch importFormat {
+        case .postmanCollection: "Paste Postman Collection JSON (v2.1)"
+        case .openAPI: "Paste an OpenAPI 3.x or Swagger 2.0 document (JSON)"
+        case .curl: "Paste one or more cURL commands (one per line)"
+        }
+    }
+
     // MARK: - Import Logic
 
     private func performImport() {
         switch importFormat {
         case .postmanCollection:
-            let requests = ImportExportService.importPostmanCollection(importText)
+            let requests = OpenAPICodec.isOpenAPIDocument(importText)
+                ? OpenAPICodec.importDocument(importText)
+                : ImportExportService.importPostmanCollection(importText)
+            for req in requests {
+                modelContext.insert(req)
+            }
+        case .openAPI:
+            let requests = OpenAPICodec.importDocument(importText)
             for req in requests {
                 modelContext.insert(req)
             }
