@@ -97,6 +97,7 @@ struct ContentView: View {
         case "json-yaml": JSONYamlView()
         case "json-csv": JSONCSVView()
         case "json-toml": JSONTOMLView()
+        case "plist-converter": PlistConverterView()
         case "markdown-preview": MarkdownPreviewView()
         case "text-diff": TextDiffView()
         case "ocr": OCRView()
