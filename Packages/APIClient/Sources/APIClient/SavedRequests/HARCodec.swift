@@ -37,12 +37,23 @@ public struct HAREntry: Sendable {
     }
 }
 
+public struct HARParam: Sendable {
+    public var name: String
+    public var value: String
+    public var fileName: String?
+    public var contentType: String?
+
+    public init(name: String, value: String = "", fileName: String? = nil, contentType: String? = nil) {
+        self.name = name; self.value = value; self.fileName = fileName; self.contentType = contentType
+    }
+}
+
 public struct HARPostData: Sendable {
     public var mimeType: String
     public var text: String?
-    public var params: [(name: String, value: String)]
+    public var params: [HARParam]
 
-    public init(mimeType: String, text: String? = nil, params: [(name: String, value: String)] = []) {
+    public init(mimeType: String, text: String? = nil, params: [HARParam] = []) {
         self.mimeType = mimeType; self.text = text; self.params = params
     }
 }
@@ -93,9 +104,9 @@ public enum HARCodec {
             guard scheme == "http" || scheme == "https" else { return nil }
 
             let postData: HARPostData? = request.postData.flatMap { pd in
-                let params = (pd.params ?? []).compactMap { p -> (name: String, value: String)? in
+                let params = (pd.params ?? []).compactMap { p -> HARParam? in
                     guard let name = p.name else { return nil }
-                    return (name: name, value: p.value ?? "")
+                    return HARParam(name: name, value: p.value ?? "", fileName: p.fileName, contentType: p.contentType)
                 }
                 guard pd.text != nil || !params.isEmpty else { return nil }
                 return HARPostData(mimeType: pd.mimeType ?? "", text: pd.text, params: params)
@@ -149,6 +160,15 @@ public enum HARCodec {
         let mime = postData.mimeType.lowercased()
         if mime.contains("application/json") {
             return .json(postData.text ?? "")
+        }
+        if mime.contains("multipart/form-data"), !postData.params.isEmpty {
+            // HAR carries no file contents — file params come back as path-less file parts.
+            return .multipart(postData.params.map { p in
+                if let fileName = p.fileName {
+                    return MultipartPart(name: p.name, kind: .file(path: "", filename: fileName, mimeType: p.contentType ?? ""))
+                }
+                return MultipartPart(name: p.name, kind: .text(p.value))
+            })
         }
         if mime.contains("application/x-www-form-urlencoded"), !postData.params.isEmpty {
             return .formData(postData.params.map { KeyValuePair(key: $0.name, value: $0.value) })
@@ -239,12 +259,14 @@ public enum HARCodec {
                 postData = OutPostData(
                     mimeType: "application/x-www-form-urlencoded",
                     text: enabled.map { "\($0.key)=\($0.value)" }.joined(separator: "&"),
-                    params: enabled.map { OutNV(name: $0.key, value: $0.value) }
+                    params: enabled.map { OutParam(name: $0.key, value: $0.value) }
                 )
             } else if case .raw(let text) = body {
                 postData = OutPostData(mimeType: contentType ?? "text/plain", text: text, params: nil)
             } else if case .binary(let data) = body {
                 postData = OutPostData(mimeType: contentType ?? "application/octet-stream", text: data.base64EncodedString(), params: nil)
+            } else if case .multipart(let parts) = body {
+                postData = OutPostData(mimeType: "multipart/form-data", text: nil, params: outParams(parts))
             }
         }
         return OutEntry(
@@ -283,13 +305,39 @@ public enum HARCodec {
             return OutPostData(
                 mimeType: "application/x-www-form-urlencoded",
                 text: pairs.map { "\($0.key)=\($0.value)" }.joined(separator: "&"),
-                params: pairs.map { OutNV(name: $0.key, value: $0.value) }
+                params: pairs.map { OutParam(name: $0.key, value: $0.value) }
             )
         }
         if normalized == "raw", let raw = item.rawBody {
             return OutPostData(mimeType: contentType ?? "text/plain", text: raw, params: nil)
         }
+        // History stores multipart parts as encoded [MultipartPart] in requestBodyJSON.
+        if normalized == "multipart", let data = item.requestBodyJSON,
+           let parts = try? JSONDecoder().decode([MultipartPart].self, from: data) {
+            return OutPostData(mimeType: "multipart/form-data", text: nil, params: outParams(parts))
+        }
+        // History stores binary request bytes in requestBodyJSON.
+        if normalized == "binary", let data = item.requestBodyJSON {
+            return OutPostData(mimeType: contentType ?? "application/octet-stream", text: data.base64EncodedString(), params: nil)
+        }
         return nil
+    }
+
+    private static func outParams(_ parts: [MultipartPart]) -> [OutParam] {
+        parts.filter { $0.isEnabled && !$0.name.isEmpty }.map { part in
+            switch part.kind {
+            case .text(let value):
+                OutParam(name: part.name, value: value)
+            case .file(let path, let filename, let mime):
+                // File contents are intentionally not exported — only filename and content type.
+                OutParam(
+                    name: part.name,
+                    value: nil,
+                    fileName: filename.isEmpty ? (path as NSString).lastPathComponent : filename,
+                    contentType: mime.isEmpty ? nil : mime
+                )
+            }
+        }
     }
 
     // MARK: - Helpers
@@ -383,10 +431,11 @@ public enum HARCodec {
         var postData: RawPostData?
     }
     private struct RawNV: Decodable { var name: String?; var value: String? }
+    private struct RawParam: Decodable { var name: String?; var value: String?; var fileName: String?; var contentType: String? }
     private struct RawPostData: Decodable {
         var mimeType: String?
         var text: String?
-        var params: [RawNV]?
+        var params: [RawParam]?
     }
     private struct RawResponse: Decodable {
         var status: Int?
@@ -416,7 +465,8 @@ public enum HARCodec {
         var headersSize: Int; var bodySize: Int
     }
     private struct OutNV: Encodable { var name: String; var value: String }
-    private struct OutPostData: Encodable { var mimeType: String; var text: String?; var params: [OutNV]? }
+    private struct OutParam: Encodable { var name: String; var value: String?; var fileName: String? = nil; var contentType: String? = nil }
+    private struct OutPostData: Encodable { var mimeType: String; var text: String?; var params: [OutParam]? }
     private struct OutResponse: Encodable {
         var status: Int; var statusText: String; var httpVersion: String
         var cookies: [OutNV]; var headers: [OutNV]

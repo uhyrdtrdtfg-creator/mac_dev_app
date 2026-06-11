@@ -68,6 +68,7 @@ public enum HTTPClientService {
                 if request.value(forHTTPHeaderField: "Content-Type") == nil { request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type") }
             case .raw(let text): request.httpBody = Data(text.utf8)
             case .binary(let data): request.httpBody = data
+            case .multipart(let parts): try MultipartEncoder.apply(parts: parts, to: &request)
             case .graphql(let query, let variables):
                 do { request.httpBody = try GraphQLEnvelope.build(query: query, variables: variables) }
                 catch { throw HTTPClientError.invalidGraphQLVariables(error.localizedDescription) }

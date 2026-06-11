@@ -27,10 +27,13 @@ public struct CodeGenRequest: Sendable {
     public var queryParams: [KeyValuePair]
     public var body: RequestBody?
     public var auth: AuthType?
+    /// Source path of a `.binary` body, when known — lets generators emit a real read-file idiom.
+    public var binaryFilePath: String?
 
-    public init(method: HTTPMethod, url: String, headers: [KeyValuePair] = [], queryParams: [KeyValuePair] = [], body: RequestBody? = nil, auth: AuthType? = nil) {
+    public init(method: HTTPMethod, url: String, headers: [KeyValuePair] = [], queryParams: [KeyValuePair] = [], body: RequestBody? = nil, auth: AuthType? = nil, binaryFilePath: String? = nil) {
         self.method = method; self.url = url; self.headers = headers
         self.queryParams = queryParams; self.body = body; self.auth = auth
+        self.binaryFilePath = binaryFilePath
     }
 
     public init(curl: CurlParseResult) {
@@ -62,6 +65,8 @@ public enum RequestCodeGenerator {
         var formPairs: [(String, String)]?
         var rawBody: String?
         var binaryByteCount: Int?
+        var binaryFilePath: String?
+        var multipartParts: [MultipartPart]?
         var placeholderComment: String?
         var basicAuth: (user: String, password: String)?
 
@@ -103,6 +108,10 @@ public enum RequestCodeGenerator {
             plan.rawBody = text
         case .binary(let data):
             plan.binaryByteCount = data.count
+            plan.binaryFilePath = request.binaryFilePath
+        case .multipart(let parts):
+            // No Content-Type here — each language's multipart API sets its own boundary.
+            plan.multipartParts = parts.filter { $0.isEnabled }
         case .graphql(let query, let variables):
             if let envelope = try? GraphQLEnvelope.buildString(query: query, variables: variables) {
                 plan.jsonBody = envelope
@@ -135,6 +144,24 @@ public enum RequestCodeGenerator {
         return plan
     }
 
+    private static func textParts(_ parts: [MultipartPart]) -> [(name: String, value: String)] {
+        parts.compactMap { part in
+            if case .text(let value) = part.kind { return (part.name, value) }
+            return nil
+        }
+    }
+
+    private static func fileParts(_ parts: [MultipartPart]) -> [(name: String, path: String, filename: String, mime: String)] {
+        parts.compactMap { part in
+            if case .file(let path, let filename, let mime) = part.kind {
+                return (part.name, path,
+                        filename.isEmpty ? (path as NSString).lastPathComponent : filename,
+                        mime.isEmpty ? "application/octet-stream" : mime)
+            }
+            return nil
+        }
+    }
+
     public static func generate(_ language: CodeGenLanguage, request: CodeGenRequest) -> String {
         switch language {
         case .swiftURLSession: swiftURLSession(request)
@@ -164,9 +191,34 @@ public enum RequestCodeGenerator {
         } else if let raw = plan.rawBody {
             lines.append("let body = \(swiftBodyLiteral(raw))")
             lines.append("request.httpBody = Data(body.utf8)")
+        } else if let parts = plan.multipartParts {
+            lines.append(#"let boundary = "Boundary-\(UUID().uuidString)""#)
+            lines.append(#"request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")"#)
+            lines.append("var body = Data()")
+            for part in parts {
+                let name = escapeCommon(MultipartEncoder.escapeDispositionValue(part.name), quote: "\"")
+                switch part.kind {
+                case .text(let value):
+                    let escaped = escapeCommon(value, quote: "\"")
+                    lines.append(#"body.append(Data("--\(boundary)\r\nContent-Disposition: form-data; name=\"\#(name)\"\r\n\r\n\#(escaped)\r\n".utf8))"#)
+                case .file(let path, let filename, let mime):
+                    let resolvedFilename = escapeCommon(MultipartEncoder.escapeDispositionValue(filename.isEmpty ? (path as NSString).lastPathComponent : filename), quote: "\"")
+                    let resolvedMime = escapeCommon(mime.isEmpty ? "application/octet-stream" : mime, quote: "\"")
+                    lines.append(#"body.append(Data("--\(boundary)\r\nContent-Disposition: form-data; name=\"\#(name)\"; filename=\"\#(resolvedFilename)\"\r\nContent-Type: \#(resolvedMime)\r\n\r\n".utf8))"#)
+                    lines.append("body.append(try Data(contentsOf: URL(fileURLWithPath: \(swiftString(path)))))")
+                    lines.append(#"body.append(Data("\r\n".utf8))"#)
+                }
+            }
+            lines.append(#"body.append(Data("--\(boundary)--\r\n".utf8))"#)
+            lines.append("request.httpBody = body")
         } else if let count = plan.binaryByteCount {
-            lines.append("// Binary body (\(count) bytes) — load it from a file:")
-            lines.append("request.httpBody = try Data(contentsOf: URL(fileURLWithPath: \"/path/to/body\"))")
+            if let path = plan.binaryFilePath {
+                lines.append("// Binary body (\(count) bytes) read from file:")
+                lines.append("request.httpBody = try Data(contentsOf: URL(fileURLWithPath: \(swiftString(path))))")
+            } else {
+                lines.append("// Binary body (\(count) bytes) — load it from a file:")
+                lines.append("request.httpBody = try Data(contentsOf: URL(fileURLWithPath: \"/path/to/body\"))")
+            }
         } else if let comment = plan.placeholderComment {
             lines.append("// \(comment)")
         }
@@ -208,9 +260,34 @@ public enum RequestCodeGenerator {
         } else if let raw = plan.rawBody {
             lines.append("data = \(pythonBodyLiteral(raw))")
             callArgs.append("data=data")
+        } else if let parts = plan.multipartParts {
+            let texts = textParts(parts)
+            let files = fileParts(parts)
+            if !texts.isEmpty {
+                lines.append("data = {")
+                for (name, value) in texts { lines.append("    \(pythonString(name)): \(pythonString(value)),") }
+                lines.append("}")
+                callArgs.append("data=data")
+            }
+            if !files.isEmpty {
+                lines.append("files = {")
+                for file in files {
+                    lines.append("    \(pythonString(file.name)): (\(pythonString(file.filename)), open(\(pythonString(file.path)), 'rb'), \(pythonString(file.mime))),")
+                }
+                lines.append("}")
+                callArgs.append("files=files")
+            } else {
+                lines.append("# No file parts — requests only sends multipart/form-data when files= is present;")
+                lines.append("# use files={'name': (None, 'value')} to force a multipart body.")
+            }
         } else if let count = plan.binaryByteCount {
-            lines.append("# Binary body (\(count) bytes) — load it from a file:")
-            lines.append("data = open(\"/path/to/body\", \"rb\").read()")
+            if let path = plan.binaryFilePath {
+                lines.append("# Binary body (\(count) bytes) read from file:")
+                lines.append("data = open(\(pythonString(path)), \"rb\").read()")
+            } else {
+                lines.append("# Binary body (\(count) bytes) — load it from a file:")
+                lines.append("data = open(\"/path/to/body\", \"rb\").read()")
+            }
             callArgs.append("data=data")
         } else if let comment = plan.placeholderComment {
             lines.append("# \(comment)")
@@ -231,7 +308,28 @@ public enum RequestCodeGenerator {
         let plan = plan(for: request, nativeBasicAuth: false)
         // Top-level await only parses as a module, so wrap in an async IIFE.
         // Multi-line body literals are appended verbatim — never re-indent them.
-        var lines = ["(async () => {"]
+        var lines: [String] = []
+        if plan.binaryFilePath != nil {
+            lines.append("const { readFileSync } = require(\"node:fs\");")
+            lines.append("")
+        }
+        lines.append("(async () => {")
+        if let parts = plan.multipartParts {
+            lines.append("  // Content-Type with the multipart boundary is set automatically.")
+            lines.append("  const form = new FormData();")
+            for part in parts {
+                switch part.kind {
+                case .text(let value):
+                    lines.append("  form.append(\(jsString(part.name)), \(jsString(value)));")
+                case .file(let path, let filename, let mime):
+                    let resolvedFilename = filename.isEmpty ? (path as NSString).lastPathComponent : filename
+                    let resolvedMime = mime.isEmpty ? "application/octet-stream" : mime
+                    lines.append("  // File part \(jsString(part.name)) — replace the placeholder with the contents of \(jsString(path)):")
+                    lines.append("  form.append(\(jsString(part.name)), new File([\(jsString("/* file bytes */"))], \(jsString(resolvedFilename)), { type: \(jsString(resolvedMime)) }));")
+                }
+            }
+            lines.append("")
+        }
         lines.append("  const response = await fetch(\(jsString(plan.url)), {")
         lines.append("    method: \(jsString(plan.method)),")
         if !plan.headers.isEmpty {
@@ -243,8 +341,14 @@ public enum RequestCodeGenerator {
             lines.append("    body: \(jsBodyLiteral(body)),")
         } else if let pairs = plan.formPairs {
             lines.append("    body: \(jsString(formEncoded(pairs))),")
+        } else if plan.multipartParts != nil {
+            lines.append("    body: form,")
         } else if let count = plan.binaryByteCount {
-            lines.append("    // Binary body (\(count) bytes) — pass a Blob/Buffer here.")
+            if let path = plan.binaryFilePath {
+                lines.append("    body: readFileSync(\(jsString(path))), // \(count) bytes")
+            } else {
+                lines.append("    // Binary body (\(count) bytes) — pass a Blob/Buffer here.")
+            }
         } else if let comment = plan.placeholderComment {
             lines.append("    // \(comment)")
         }
@@ -259,13 +363,35 @@ public enum RequestCodeGenerator {
 
     private static func nodeAxios(_ request: CodeGenRequest) -> String {
         let plan = plan(for: request, nativeBasicAuth: true)
-        var lines = ["const axios = require(\"axios\");", ""]
+        var lines = ["const axios = require(\"axios\");"]
+        if let parts = plan.multipartParts {
+            lines.append("const FormData = require(\"form-data\");")
+            if !fileParts(parts).isEmpty { lines.append("const fs = require(\"fs\");") }
+        } else if plan.binaryFilePath != nil {
+            lines.append("const fs = require(\"fs\");")
+        }
+        lines.append("")
+        if let parts = plan.multipartParts {
+            lines.append("const form = new FormData();")
+            for part in parts {
+                switch part.kind {
+                case .text(let value):
+                    lines.append("form.append(\(jsString(part.name)), \(jsString(value)));")
+                case .file(let path, let filename, let mime):
+                    let resolvedFilename = filename.isEmpty ? (path as NSString).lastPathComponent : filename
+                    let resolvedMime = mime.isEmpty ? "application/octet-stream" : mime
+                    lines.append("form.append(\(jsString(part.name)), fs.createReadStream(\(jsString(path))), { filename: \(jsString(resolvedFilename)), contentType: \(jsString(resolvedMime)) });")
+                }
+            }
+            lines.append("")
+        }
         var options = [
             "    method: \(jsString(plan.method.lowercased())),",
             "    url: \(jsString(plan.url)),",
         ]
-        if !plan.headers.isEmpty {
+        if !plan.headers.isEmpty || plan.multipartParts != nil {
             var headerLines = ["    headers: {"]
+            if plan.multipartParts != nil { headerLines.append("      ...form.getHeaders(),") }
             for (key, value) in plan.headers { headerLines.append("      \(jsString(key)): \(jsString(value)),") }
             headerLines.append("    },")
             options.append(headerLines.joined(separator: "\n"))
@@ -274,8 +400,14 @@ public enum RequestCodeGenerator {
             options.append("    data: \(jsBodyLiteral(body)),")
         } else if let pairs = plan.formPairs {
             options.append("    data: \(jsString(formEncoded(pairs))),")
+        } else if plan.multipartParts != nil {
+            options.append("    data: form,")
         } else if let count = plan.binaryByteCount {
-            options.append("    // Binary body (\(count) bytes) — pass a Buffer here.")
+            if let path = plan.binaryFilePath {
+                options.append("    data: fs.readFileSync(\(jsString(path))), // \(count) bytes")
+            } else {
+                options.append("    // Binary body (\(count) bytes) — pass a Buffer here.")
+            }
         } else if let comment = plan.placeholderComment {
             options.append("    // \(comment)")
         }
@@ -300,27 +432,72 @@ public enum RequestCodeGenerator {
         let plan = plan(for: request, nativeBasicAuth: true)
         var bodyDecl: String?
         var bodyArg = "nil"
+        var multipartLines: [String]?
         if let json = plan.jsonBody {
             bodyDecl = "body := strings.NewReader(\(goBodyString(json)))"
         } else if let pairs = plan.formPairs {
             bodyDecl = "body := strings.NewReader(\(goBodyString(formEncoded(pairs))))"
+        } else if let parts = plan.multipartParts {
+            var ml = ["var buf bytes.Buffer", "w := multipart.NewWriter(&buf)"]
+            for (name, value) in textParts(parts) {
+                ml.append("if err := w.WriteField(\(goString(name)), \(goString(value))); err != nil {")
+                ml.append("\tpanic(err)")
+                ml.append("}")
+            }
+            for file in fileParts(parts) {
+                let disposition = "form-data; name=\"\(MultipartEncoder.escapeDispositionValue(file.name))\"; filename=\"\(MultipartEncoder.escapeDispositionValue(file.filename))\""
+                ml.append("{")
+                ml.append("\th := textproto.MIMEHeader{}")
+                ml.append("\th.Set(\"Content-Disposition\", \(goString(disposition)))")
+                ml.append("\th.Set(\"Content-Type\", \(goString(file.mime)))")
+                ml.append("\tpart, err := w.CreatePart(h)")
+                ml.append("\tif err != nil {")
+                ml.append("\t\tpanic(err)")
+                ml.append("\t}")
+                ml.append("\tf, err := os.Open(\(goString(file.path)))")
+                ml.append("\tif err != nil {")
+                ml.append("\t\tpanic(err)")
+                ml.append("\t}")
+                ml.append("\tif _, err := io.Copy(part, f); err != nil {")
+                ml.append("\t\tpanic(err)")
+                ml.append("\t}")
+                ml.append("\tf.Close()")
+                ml.append("}")
+            }
+            ml.append("w.Close()")
+            multipartLines = ml
+            bodyArg = "&buf"
         } else if let raw = plan.rawBody {
             bodyDecl = "body := strings.NewReader(\(goBodyString(raw)))"
         } else if let count = plan.binaryByteCount {
-            bodyDecl = "// Binary body (\(count) bytes) — open a file instead:\n\tbody, _ := os.Open(\"/path/to/body\")"
+            if let path = plan.binaryFilePath {
+                bodyDecl = "// Binary body (\(count) bytes)\n\tbody, err := os.Open(\(goString(path)))\n\tif err != nil {\n\t\tpanic(err)\n\t}"
+            } else {
+                bodyDecl = "// Binary body (\(count) bytes) — open a file instead:\n\tbody, _ := os.Open(\"/path/to/body\")"
+            }
         }
         if bodyDecl != nil { bodyArg = "body" }
 
         var imports = ["\"fmt\"", "\"io\"", "\"net/http\""]
         if plan.jsonBody != nil || plan.formPairs != nil || plan.rawBody != nil { imports.append("\"strings\"") }
         if plan.binaryByteCount != nil { imports.append("\"os\"") }
+        if let parts = plan.multipartParts {
+            imports.append("\"bytes\"")
+            imports.append("\"mime/multipart\"")
+            if !fileParts(parts).isEmpty {
+                imports.append("\"net/textproto\"")
+                imports.append("\"os\"")
+            }
+        }
 
         var lines = ["package main", "", "import ("]
         for imp in imports.sorted() { lines.append("\t\(imp)") }
         lines.append(")")
         lines.append("")
         lines.append("func main() {")
-        if let bodyDecl { lines.append("\t\(bodyDecl)") }
+        if let multipartLines {
+            for ml in multipartLines { lines.append("\t\(ml)") }
+        } else if let bodyDecl { lines.append("\t\(bodyDecl)") }
         else if let comment = plan.placeholderComment { lines.append("\t// \(comment)") }
         lines.append("\treq, err := http.NewRequest(\(goString(plan.method)), \(goString(plan.url)), \(bodyArg))")
         lines.append("\tif err != nil {")
@@ -328,6 +505,9 @@ public enum RequestCodeGenerator {
         lines.append("\t}")
         for (key, value) in plan.headers {
             lines.append("\treq.Header.Set(\(goString(key)), \(goString(value)))")
+        }
+        if plan.multipartParts != nil {
+            lines.append("\treq.Header.Set(\"Content-Type\", w.FormDataContentType())")
         }
         if let basic = plan.basicAuth {
             lines.append("\treq.SetBasicAuth(\(goString(basic.user)), \(goString(basic.password)))")

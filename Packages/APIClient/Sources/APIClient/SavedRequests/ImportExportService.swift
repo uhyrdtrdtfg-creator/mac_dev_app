@@ -89,6 +89,23 @@ public enum ImportExportService {
                     "graphql": ["query": query, "variables": variables]
                 ] as [String: Any]
             }
+            if case .multipart(let parts) = req.body {
+                request["body"] = [
+                    "mode": "formdata",
+                    "formdata": parts.map { part -> [String: Any] in
+                        var entry: [String: Any]
+                        switch part.kind {
+                        case .text(let value):
+                            entry = ["key": part.name, "value": value, "type": "text"]
+                        case .file(let path, _, let mime):
+                            entry = ["key": part.name, "src": path, "type": "file"]
+                            if !mime.isEmpty { entry["contentType"] = mime }
+                        }
+                        if !part.isEnabled { entry["disabled"] = true }
+                        return entry
+                    }
+                ] as [String: Any]
+            }
 
             item["request"] = request
 
@@ -204,10 +221,23 @@ public enum ImportExportService {
                     saved.body = .json(raw)
                     saved.bodyType = "json"
                 } else if mode == "formdata", let params = bodyObj["formdata"] as? [[String: Any]] {
-                    saved.body = .formData(params.map {
-                        KeyValuePair(key: $0["key"] as? String ?? "", value: $0["value"] as? String ?? "")
-                    })
-                    saved.bodyType = "formData"
+                    if params.contains(where: { ($0["type"] as? String) == "file" }) {
+                        saved.body = .multipart(params.map { p in
+                            let name = p["key"] as? String ?? ""
+                            let enabled = !(p["disabled"] as? Bool ?? false)
+                            if (p["type"] as? String) == "file" {
+                                let src = (p["src"] as? String) ?? (p["src"] as? [String])?.first ?? ""
+                                return MultipartPart(name: name, kind: .file(path: src, filename: (src as NSString).lastPathComponent, mimeType: p["contentType"] as? String ?? ""), isEnabled: enabled)
+                            }
+                            return MultipartPart(name: name, kind: .text(p["value"] as? String ?? ""), isEnabled: enabled)
+                        })
+                        saved.bodyType = "Multipart"
+                    } else {
+                        saved.body = .formData(params.map {
+                            KeyValuePair(key: $0["key"] as? String ?? "", value: $0["value"] as? String ?? "")
+                        })
+                        saved.bodyType = "formData"
+                    }
                 } else if mode == "graphql", let gql = bodyObj["graphql"] as? [String: Any] {
                     let query = gql["query"] as? String ?? ""
                     var variables = ""

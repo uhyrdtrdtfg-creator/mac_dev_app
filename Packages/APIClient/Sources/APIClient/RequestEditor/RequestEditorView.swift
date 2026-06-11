@@ -21,6 +21,9 @@ struct RequestEditorView: View {
     @Binding var rawBody: String
     @Binding var graphqlQuery: String
     @Binding var graphqlVariables: String
+    @Binding var multipartParts: [MultipartPart]
+    @Binding var binaryFilePath: String
+    @Binding var binaryMimeType: String
     @Binding var authMethod: AuthMethod
     @Binding var bearerToken: String
     @Binding var basicUsername: String
@@ -74,7 +77,7 @@ struct RequestEditorView: View {
                     case .headers:
                         HeadersEditor(headers: $headers)
                     case .body:
-                        BodyEditor(bodyType: $bodyType, jsonBody: $jsonBody, formDataPairs: $formDataPairs, rawBody: $rawBody, graphqlQuery: $graphqlQuery, graphqlVariables: $graphqlVariables, url: url, headers: headers, auth: currentAuth)
+                        BodyEditor(bodyType: $bodyType, jsonBody: $jsonBody, formDataPairs: $formDataPairs, rawBody: $rawBody, graphqlQuery: $graphqlQuery, graphqlVariables: $graphqlVariables, multipartParts: $multipartParts, binaryFilePath: $binaryFilePath, binaryMimeType: $binaryMimeType, url: url, headers: headers, auth: currentAuth)
                     case .auth:
                         AuthEditor(authMethod: $authMethod, bearerToken: $bearerToken, basicUsername: $basicUsername, basicPassword: $basicPassword, apiKeyName: $apiKeyName, apiKeyValue: $apiKeyValue, apiKeyLocation: $apiKeyLocation, oauthConfig: $oauthConfig)
                     case .scripts:

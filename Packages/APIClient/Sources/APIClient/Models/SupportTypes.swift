@@ -23,6 +23,7 @@ public enum RequestBody: Codable, Sendable {
     case raw(String)
     case binary(Data)
     case graphql(query: String, variables: String)
+    case multipart([MultipartPart])
 }
 
 public enum AuthType: Codable, Sendable {
@@ -34,4 +35,20 @@ public enum AuthType: Codable, Sendable {
 
 public enum APIKeyLocation: String, Codable, Sendable {
     case header; case queryParam
+}
+
+public enum PartKind: Codable, Hashable, Sendable {
+    case text(String)
+    case file(path: String, filename: String, mimeType: String)
+}
+
+public struct MultipartPart: Codable, Hashable, Identifiable, Sendable {
+    public var id = UUID()
+    public var name: String
+    public var kind: PartKind
+    public var isEnabled: Bool
+
+    public init(name: String = "", kind: PartKind = .text(""), isEnabled: Bool = true) {
+        self.name = name; self.kind = kind; self.isEnabled = isEnabled
+    }
 }

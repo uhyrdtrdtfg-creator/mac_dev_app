@@ -20,6 +20,9 @@ public final class OpenTabModel {
     public var rawBody: String = ""
     public var graphqlQuery: String = ""
     public var graphqlVariables: String = ""
+    public var multipartPartsJSON: Data?
+    public var binaryFilePath: String = ""
+    public var binaryMimeType: String = ""
     public var authMethod: String = "None"
     public var bearerToken: String = ""
     public var basicUsername: String = ""

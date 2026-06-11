@@ -27,6 +27,45 @@ public enum CurlHelper {
         return parts.joined(separator: " \\\n  ")
     }
 
+    /// Export a multipart request as a cURL command using -F parts.
+    /// The Content-Type header is omitted — curl generates its own boundary.
+    public static func export(_ request: URLRequest, multipartParts: [MultipartPart]) -> String {
+        var parts = ["curl"]
+
+        if let method = request.httpMethod, method != "GET", method != "POST" {
+            parts.append("-X \(method)")
+        }
+
+        if let headers = request.allHTTPHeaderFields {
+            for (key, value) in headers.sorted(by: { $0.key < $1.key })
+            where key.caseInsensitiveCompare("Content-Type") != .orderedSame {
+                parts.append("-H '\(key): \(value)'")
+            }
+        }
+
+        for part in multipartParts where part.isEnabled {
+            switch part.kind {
+            case .text(let value):
+                parts.append("-F '\(escapeSingleQuotes("\(part.name)=\(value)"))'")
+            case .file(let path, let filename, let mimeType):
+                var spec = "\(part.name)=@\(path)"
+                if !mimeType.isEmpty { spec += ";type=\(mimeType)" }
+                if !filename.isEmpty, filename != (path as NSString).lastPathComponent { spec += ";filename=\(filename)" }
+                parts.append("-F '\(escapeSingleQuotes(spec))'")
+            }
+        }
+
+        if let url = request.url?.absoluteString {
+            parts.append("'\(url)'")
+        }
+
+        return parts.joined(separator: " \\\n  ")
+    }
+
+    private static func escapeSingleQuotes(_ text: String) -> String {
+        text.replacingOccurrences(of: "'", with: "'\\''")
+    }
+
     /// Parse a cURL command string into components
     public static func parse(_ curl: String) -> CurlParseResult? {
         let trimmed = curl.trimmingCharacters(in: .whitespacesAndNewlines)

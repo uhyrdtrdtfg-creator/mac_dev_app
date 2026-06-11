@@ -6,6 +6,8 @@ enum BodyType: String, CaseIterable, Identifiable {
     case formData = "Form Data"
     case raw = "Raw"
     case graphql = "GraphQL"
+    case multipart = "Multipart"
+    case binary = "Binary"
 
     var id: String { rawValue }
 }
@@ -17,6 +19,9 @@ struct BodyEditor: View {
     @Binding var rawBody: String
     @Binding var graphqlQuery: String
     @Binding var graphqlVariables: String
+    @Binding var multipartParts: [MultipartPart]
+    @Binding var binaryFilePath: String
+    @Binding var binaryMimeType: String
     var url: String = ""
     var headers: [KeyValuePair] = []
     var auth: AuthType? = nil
@@ -48,6 +53,10 @@ struct BodyEditor: View {
                     .frame(minHeight: 100)
             case .graphql:
                 GraphQLBodyEditor(query: $graphqlQuery, variables: $graphqlVariables, url: url, headers: headers, auth: auth)
+            case .multipart:
+                MultipartBodyEditor(parts: $multipartParts)
+            case .binary:
+                BinaryBodyEditor(filePath: $binaryFilePath, mimeType: $binaryMimeType)
             }
         }
     }

@@ -87,6 +87,9 @@ public struct APIClientView: View {
                             rawBody: binding(tab, \.rawBody),
                             graphqlQuery: binding(tab, \.graphqlQuery),
                             graphqlVariables: binding(tab, \.graphqlVariables),
+                            multipartParts: multipartBinding(tab),
+                            binaryFilePath: binding(tab, \.binaryFilePath),
+                            binaryMimeType: binding(tab, \.binaryMimeType),
                             authMethod: authMethodBinding(tab),
                             bearerToken: binding(tab, \.bearerToken),
                             basicUsername: binding(tab, \.basicUsername),
@@ -491,6 +494,16 @@ public struct APIClientView: View {
         )
     }
 
+    private func multipartBinding(_ tab: OpenTabModel) -> Binding<[MultipartPart]> {
+        Binding(
+            get: { tab.multipartParts },
+            set: { newValue in
+                tab.multipartParts = newValue
+                markDirty(tab)
+            }
+        )
+    }
+
     private func oauthConfigBinding(_ tab: OpenTabModel) -> Binding<OAuth2Config> {
         Binding(
             get: { tab.oauthConfig },
@@ -536,6 +549,8 @@ public struct APIClientView: View {
             case .formData: .formData(tab.formDataPairs)
             case .raw: .raw(tab.rawBody)
             case .graphql: .graphql(query: tab.graphqlQuery, variables: tab.graphqlVariables)
+            case .multipart: .multipart(tab.multipartParts)
+            case .binary: nil // read from binaryFilePath at send time below
             }
         }()
 
@@ -551,19 +566,30 @@ public struct APIClientView: View {
 
         let method = HTTPMethod(rawValue: tab.method) ?? .get
         let url = tab.url
-        let headers = tab.headers
+        let headers = BinaryBodyFile.headers(tab.headers, addingContentType: bodyTypeEnum == .binary ? tab.binaryMimeType : "")
+        let binaryFilePath = tab.binaryFilePath
         let queryParams = tab.queryParams
         let preScript = tab.preScript
         let postScript = tab.postScript
         let rewriteScript = tab.rewriteScript
 
         Task {
+            var requestBody = currentBody
+            if bodyTypeEnum == .binary {
+                do { requestBody = .binary(try BinaryBodyFile.load(path: binaryFilePath)) }
+                catch {
+                    errorMessage = error.localizedDescription
+                    storeErrorInTab(tab, message: error.localizedDescription)
+                    isSending = false
+                    return
+                }
+            }
             let result = await RequestExecutor.execute(
                 method: method,
                 url: url,
                 headers: headers,
                 queryParams: queryParams,
-                body: currentBody,
+                body: requestBody,
                 auth: currentAuth,
                 preScript: preScript.isEmpty ? nil : preScript,
                 postScript: postScript.isEmpty ? nil : postScript,
@@ -607,6 +633,12 @@ public struct APIClientView: View {
         case .raw: history.rawBody = tab.rawBody
         // HTTPHistoryModel's CloudKit schema is frozen — store the GraphQL envelope through the JSON pathway.
         case .graphql: history.requestBodyJSON = try? GraphQLEnvelope.build(query: tab.graphqlQuery, variables: tab.graphqlVariables)
+        // Frozen schema reuse: multipart parts ride in requestBodyJSON as encoded [MultipartPart].
+        case .multipart: history.requestBodyJSON = try? JSONEncoder().encode(tab.multipartParts)
+        // Frozen schema reuse: binary bytes ride in requestBodyJSON, the source path in rawBody.
+        case .binary:
+            history.rawBody = tab.binaryFilePath
+            history.requestBodyJSON = try? BinaryBodyFile.load(path: tab.binaryFilePath)
         }
 
         history.preScript = tab.preScript.isEmpty ? nil : tab.preScript
@@ -657,6 +689,20 @@ public struct APIClientView: View {
                     tab.graphqlQuery = query
                     tab.graphqlVariables = variables
                 }
+            case .multipart:
+                if let data = item.requestBodyJSON,
+                   let parts = try? JSONDecoder().decode([MultipartPart].self, from: data) {
+                    tab.multipartParts = parts
+                }
+            case .binary:
+                if let path = item.rawBody, !path.isEmpty, FileManager.default.fileExists(atPath: path) {
+                    tab.binaryFilePath = path
+                    tab.binaryMimeType = MultipartEncoder.mimeType(forPath: path)
+                } else if let data = item.requestBodyJSON {
+                    tab.restoreBinaryBody(data)
+                } else {
+                    tab.lastErrorMessage = "Binary request body could not be restored from history — the original file is gone."
+                }
             }
         } else {
             tab.bodyType = BodyType.none.rawValue
@@ -688,12 +734,15 @@ public struct APIClientView: View {
     private func currentCodeGenRequest() -> CodeGenRequest {
         guard let tab = activeTab else { return CodeGenRequest(method: .get, url: "") }
 
-        let body: RequestBody? = switch BodyType(rawValue: tab.bodyType) ?? .none {
+        let codeGenBodyType = BodyType(rawValue: tab.bodyType) ?? .none
+        let body: RequestBody? = switch codeGenBodyType {
         case .none: nil
         case .json: .json(tab.jsonBody)
         case .formData: .formData(tab.formDataPairs)
         case .raw: .raw(tab.rawBody)
         case .graphql: .graphql(query: tab.graphqlQuery, variables: tab.graphqlVariables)
+        case .multipart: .multipart(tab.multipartParts)
+        case .binary: .binary((try? BinaryBodyFile.load(path: tab.binaryFilePath)) ?? Data())
         }
 
         let auth: AuthType? = switch AuthMethod(rawValue: tab.authMethod) ?? .none {
@@ -707,10 +756,11 @@ public struct APIClientView: View {
         return CodeGenRequest(
             method: HTTPMethod(rawValue: tab.method) ?? .get,
             url: tab.url,
-            headers: tab.headers,
+            headers: BinaryBodyFile.headers(tab.headers, addingContentType: codeGenBodyType == .binary ? tab.binaryMimeType : ""),
             queryParams: tab.queryParams,
             body: body,
-            auth: auth
+            auth: auth,
+            binaryFilePath: tab.binaryFilePath.isEmpty ? nil : tab.binaryFilePath
         )
     }
 
@@ -761,6 +811,9 @@ public struct APIClientView: View {
         case .formData: saved.body = .formData(tab.formDataPairs)
         case .raw: saved.body = .raw(tab.rawBody)
         case .graphql: saved.body = .graphql(query: tab.graphqlQuery, variables: tab.graphqlVariables)
+        case .multipart: saved.body = .multipart(tab.multipartParts)
+        // Saved requests persist the file bytes (the path may not exist on other devices).
+        case .binary: saved.body = (try? BinaryBodyFile.load(path: tab.binaryFilePath)).map { .binary($0) }
         }
 
         saved.preScript = tab.preScript.isEmpty ? nil : tab.preScript
@@ -807,7 +860,11 @@ public struct APIClientView: View {
             case .raw(let raw):
                 tab.rawBody = raw
                 tab.bodyType = BodyType.raw.rawValue
-            case .binary: break
+            case .binary(let data):
+                tab.restoreBinaryBody(data)
+            case .multipart(let parts):
+                tab.multipartParts = parts
+                tab.bodyType = BodyType.multipart.rawValue
             case .graphql(let query, let variables):
                 tab.graphqlQuery = query
                 tab.graphqlVariables = variables
