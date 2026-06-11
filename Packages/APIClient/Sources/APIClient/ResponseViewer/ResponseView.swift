@@ -3,6 +3,7 @@ import DevAppCore
 
 enum ResponseTab: String, CaseIterable, Identifiable {
     case body = "Body"
+    case preview = "Preview"
     case headers = "Headers"
     case cookies = "Cookies"
     case rewrite = "Rewrite"
@@ -28,6 +29,7 @@ struct ResponseView: View {
     let response: HTTPResponse?
     let error: String?
     let curlCommand: String?
+    let requestURL: String?
     let onRewrite: ((HTTPResponse) -> Void)?
     @Binding var rewriteScript: String
     let externalRewriteLogs: [ScriptConsoleOutput]
@@ -40,11 +42,13 @@ struct ResponseView: View {
     @State private var isRewriteApplied = false
     @State private var rewriteScriptLogs: [ScriptConsoleOutput] = []
     @State private var rewriteMode: RewriteMode = .manual
+    @State private var showSaveExporter = false
 
-    init(response: HTTPResponse?, error: String?, curlCommand: String? = nil, rewriteScript: Binding<String> = .constant(""), rewriteScriptLogs: [ScriptConsoleOutput] = [], onRewrite: ((HTTPResponse) -> Void)? = nil) {
+    init(response: HTTPResponse?, error: String?, curlCommand: String? = nil, requestURL: String? = nil, rewriteScript: Binding<String> = .constant(""), rewriteScriptLogs: [ScriptConsoleOutput] = [], onRewrite: ((HTTPResponse) -> Void)? = nil) {
         self.response = response
         self.error = error
         self.curlCommand = curlCommand
+        self.requestURL = requestURL
         self._rewriteScript = rewriteScript
         self.externalRewriteLogs = rewriteScriptLogs
         self.onRewrite = onRewrite
@@ -97,6 +101,24 @@ struct ResponseView: View {
                         }
                     }
 
+                    Button {
+                        showSaveExporter = true
+                    } label: {
+                        Label("Save…", systemImage: "square.and.arrow.down")
+                            .font(.caption)
+                    }
+                    .buttonStyle(.bordered)
+                    .fileExporter(
+                        isPresented: $showSaveExporter,
+                        document: ResponseBodyDocument(data: response.body),
+                        contentType: ResponseFilename.exportType(forContentType: ResponseFilename.headerValue("Content-Type", in: response.headers)),
+                        defaultFilename: ResponseFilename.infer(
+                            contentDisposition: ResponseFilename.headerValue("Content-Disposition", in: response.headers),
+                            contentType: ResponseFilename.headerValue("Content-Type", in: response.headers),
+                            requestURL: requestURL
+                        )
+                    ) { _ in }
+
                     CopyButton(text: String(data: response.body, encoding: .utf8) ?? "")
                 }
                 .padding(12)
@@ -128,6 +150,9 @@ struct ResponseView: View {
                 switch selectedTab {
                 case .body:
                     bodyView(for: response)
+
+                case .preview:
+                    ResponsePreviewView(response: response)
 
                 case .headers:
                     List {
