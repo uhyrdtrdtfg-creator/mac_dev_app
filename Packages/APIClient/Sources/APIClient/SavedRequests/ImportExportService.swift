@@ -273,37 +273,60 @@ public enum ImportExportService {
     // MARK: - Import cURL Commands
 
     public static func importCurlCommands(_ text: String) -> [SavedRequestModel] {
-        // Split by lines that start with "curl"
-        let lines = text.components(separatedBy: "\n")
-        var commands: [String] = []
-        var current = ""
-        for line in lines {
-            let trimmed = line.trimmingCharacters(in: .whitespaces)
-            if trimmed.lowercased().hasPrefix("curl") && !current.isEmpty {
-                commands.append(current)
-                current = trimmed
-            } else if trimmed.lowercased().hasPrefix("curl") {
-                current = trimmed
-            } else if !current.isEmpty {
-                current += " " + trimmed
-            }
-        }
-        if !current.isEmpty { commands.append(current) }
-
-        return commands.compactMap { cmd in
-            guard let parsed = CurlHelper.parse(cmd) else { return nil }
+        CurlImporter.parse(text).map { parsed in
             let saved = SavedRequestModel(
                 name: shortName(from: parsed.url),
                 method: parsed.method,
                 url: parsed.url
             )
-            saved.headers = parsed.headers.map { KeyValuePair(key: $0.0, value: $0.1) }
-            if let body = parsed.body {
-                saved.body = .json(body)
-                saved.bodyType = "json"
+            var headers = parsed.headers
+            let hasAuthorization = headers.contains { $0.key.caseInsensitiveCompare("Authorization") == .orderedSame }
+            if !hasAuthorization, let auth = parsed.auth {
+                switch auth {
+                case .basicAuth(let username, let password):
+                    let token = Data("\(username):\(password)".utf8).base64EncodedString()
+                    headers.append(KeyValuePair(key: "Authorization", value: "Basic \(token)"))
+                case .bearerToken(let token):
+                    headers.append(KeyValuePair(key: "Authorization", value: "Bearer \(token)"))
+                default:
+                    break
+                }
+            }
+            saved.headers = headers
+
+            switch parsed.body {
+            case .multipart(let parts):
+                saved.body = .multipart(parts)
+                saved.bodyType = "Multipart"
+            case .data(let raw):
+                let contentType = headers.first { $0.key.caseInsensitiveCompare("Content-Type") == .orderedSame }?.value.lowercased() ?? ""
+                if contentType.contains("json") {
+                    saved.body = .json(raw)
+                    saved.bodyType = "json"
+                } else if contentType.contains("x-www-form-urlencoded") {
+                    saved.body = .formData(parseURLEncodedPairs(raw))
+                    saved.bodyType = "formData"
+                } else {
+                    saved.body = .raw(raw)
+                    saved.bodyType = "raw"
+                }
+            case nil:
+                break
             }
             saved.tagList = ["cURL Import"]
             return saved
+        }
+    }
+
+    private static func parseURLEncodedPairs(_ raw: String) -> [KeyValuePair] {
+        raw.components(separatedBy: "&").filter { !$0.isEmpty }.map { pair in
+            let decoded: (Substring) -> String = {
+                $0.replacingOccurrences(of: "+", with: " ").removingPercentEncoding ?? String($0)
+            }
+            if let eq = pair.firstIndex(of: "=") {
+                return KeyValuePair(key: decoded(pair[pair.startIndex..<eq]), value: decoded(pair[pair.index(after: eq)...]))
+            }
+            return KeyValuePair(key: decoded(pair[...]), value: "")
         }
     }
 
