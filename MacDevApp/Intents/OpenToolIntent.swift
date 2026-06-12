@@ -48,6 +48,7 @@ enum ToolID: String, AppEnum {
     case compression = "compression"
     case dotenvJSON = "dotenv-json"
     case sqlResult = "sql-result"
+    case dnsLookup = "dns-lookup"
     // Generators
     case qrCode = "qr-code"
     case jsonToCode = "json-to-code"
@@ -95,6 +96,7 @@ enum ToolID: String, AppEnum {
         .compression: "Compression",
         .dotenvJSON: ".env ↔ JSON",
         .sqlResult: "SQL Result → CSV/SQL",
+        .dnsLookup: "DNS Lookup",
         .qrCode: "QR Code",
         .jsonToCode: "JSON → Code",
         .imageToolbox: "Image Toolbox",
