@@ -114,6 +114,7 @@ struct ContentView: View {
         case "sql-result": SQLResultConverterView()
         case "process-manager": ProcessManagerView()
         case "dns-lookup": DNSLookupView()
+        case "subnet-calculator": SubnetCalculatorView()
         case "qr-code": QRCodeView()
         case "json-to-code": JSONToCodeView()
         case "image-toolbox": ImageToolboxView()

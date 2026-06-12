@@ -49,6 +49,7 @@ enum ToolID: String, AppEnum {
     case dotenvJSON = "dotenv-json"
     case sqlResult = "sql-result"
     case dnsLookup = "dns-lookup"
+    case subnetCalculator = "subnet-calculator"
     // Generators
     case qrCode = "qr-code"
     case jsonToCode = "json-to-code"
@@ -97,6 +98,7 @@ enum ToolID: String, AppEnum {
         .dotenvJSON: ".env ↔ JSON",
         .sqlResult: "SQL Result → CSV/SQL",
         .dnsLookup: "DNS Lookup",
+        .subnetCalculator: "IP Subnet Calculator",
         .qrCode: "QR Code",
         .jsonToCode: "JSON → Code",
         .imageToolbox: "Image Toolbox",
