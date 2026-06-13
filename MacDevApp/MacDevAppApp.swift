@@ -194,6 +194,7 @@ struct MacDevAppApp: App {
             DotenvConverterView.descriptor,
             SQLResultConverterView.descriptor,
             ProcessManagerView.descriptor,
+            PingView.descriptor,
             DNSLookupView.descriptor,
             SubnetCalculatorView.descriptor,
             // Generators

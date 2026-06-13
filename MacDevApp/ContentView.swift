@@ -113,6 +113,7 @@ struct ContentView: View {
         case "dotenv-json": DotenvConverterView()
         case "sql-result": SQLResultConverterView()
         case "process-manager": ProcessManagerView()
+        case "ping": PingView()
         case "dns-lookup": DNSLookupView()
         case "subnet-calculator": SubnetCalculatorView()
         case "qr-code": QRCodeView()

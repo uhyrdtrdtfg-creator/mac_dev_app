@@ -48,6 +48,7 @@ enum ToolID: String, AppEnum {
     case compression = "compression"
     case dotenvJSON = "dotenv-json"
     case sqlResult = "sql-result"
+    case ping = "ping"
     case dnsLookup = "dns-lookup"
     case subnetCalculator = "subnet-calculator"
     // Generators
@@ -97,6 +98,7 @@ enum ToolID: String, AppEnum {
         .compression: "Compression",
         .dotenvJSON: ".env ↔ JSON",
         .sqlResult: "SQL Result → CSV/SQL",
+        .ping: "Ping",
         .dnsLookup: "DNS Lookup",
         .subnetCalculator: "IP Subnet Calculator",
         .qrCode: "QR Code",
